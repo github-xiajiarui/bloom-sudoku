@@ -192,7 +192,7 @@ td.bottom { border-bottom: 2.5px solid #7b1fa2; }
   <div class="diff-row">
     <button class="diff-btn" data-diff="40">🌸 简单 40空</button>
     <button class="diff-btn active" data-diff="50">🌺 中等 50空</button>
-    <button class="diff-btn" data-diff="55">🌷 困难 55空</button>
+    <button class="diff-btn" data-diff="60">🌷 困难 60空</button>
   </div>
 
   <div class="board-wrap">
@@ -244,8 +244,8 @@ td.bottom { border-bottom: 2.5px solid #7b1fa2; }
 
 const APP_VERSION = 'v5';
 
-// All stored puzzles validated for: valid solved grid, unique solution,
-// logically solvable (40/50 by naked+hidden singles; 55 by full backtracking)
+// 40/50: solved source grids, puzzles generated at runtime with logic solvability
+// 60: pre-made puzzle configurations (puzzle + solved), each with unique solution
 const STORED_PUZZLES = {
   40: [
     '582413769714569382396287514437198256168325947259674831841932675623751498975846123',
@@ -261,17 +261,20 @@ const STORED_PUZZLES = {
     '561237849987145236423689157274391568135862974698754321716528493842973615359416782',
     '869123547475698123321475698296314785147852936538967412754239861913586274682741359'
   ],
-  55: [
-    '715243698234689175698715243347562819829137564156498327482956731571324986963871452',
-    '926134758483576129715289346157862493234915687869347215541693872672458931398721564',
-    '571329486368147592429685371256938147784516923913274865832461759145792638697853214',
-    '842315679631297458957486123169723584274158396385649712516932847728564931493871265',
-    '128345697794186235635297148316529784457863912289471356573614829942738561861952473'
-  ]
+  60: {
+    solved: '418263597537914268269578143143892756792456381685137429976325814851749632324681975',
+    puzzles: [
+      '008200500000904200000000100040000006090056080000030000006000000001000032020080900',
+      '008000000500000060000078040040090050000006300080130000070005800000040000320000900',
+      '000060000500000208060570000100002050702400300000000009000000010850040000004000900',
+      '010000000507010008000008043000000750702400000000000000000005004801000002300600070',
+      '008003090007000260000500100100802000090400000600000000000000804800009000020001005'
+    ]
+  }
 };
 
-const generatedPuzzles = { 40: [], 50: [], 55: [] };
-let generationStarted = { 40: false, 50: false, 55: false };
+const generatedPuzzles = { 40: [], 50: [], 60: [] };
+let generationStarted = { 40: false, 50: false, 60: false };
 
 // ======== SOLVER ========
 function solve(board) {
@@ -304,6 +307,23 @@ function getCandidates(board, r, c) {
   for (let n = 1; n <= 9; n++)
     if (isValidPlacement(board, r, c, n)) cands.push(n);
   return cands;
+}
+
+function hasConflict(board, idx) {
+  const val = board[idx];
+  if (val === 0) return false;
+  const r = Math.floor(idx / 9), c = idx % 9;
+  for (let j = 0; j < 9; j++) {
+    if (j !== c && board[r * 9 + j] === val) return true;
+  }
+  for (let i = 0; i < 9; i++) {
+    if (i !== r && board[i * 9 + c] === val) return true;
+  }
+  const br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
+  for (let i = br; i < br + 3; i++)
+    for (let j = bc; j < bc + 3; j++)
+      if ((i !== r || j !== c) && board[i * 9 + j] === val) return true;
+  return false;
 }
 
 function generateSolvedPuzzle() {
@@ -365,6 +385,24 @@ function rotate90(b) {
     for (let j = 0; j < 9; j++)
       r[j * 9 + (8 - i)] = b[i * 9 + j];
   return r;
+}
+
+// Apply the same transformation as applyTransformations, preserving 0 cells
+function applyTransformationsReuse(board) {
+  let b = [...board];
+  const op = Math.floor(Math.random() * 7);
+  switch (op) {
+    case 0: b = mirrorH(b); break;
+    case 1: b = mirrorV(b); break;
+    case 2: b = rotate90(b); break;
+    case 3: b = rotate90(b); b = rotate90(b); break;
+    case 4: b = rotate90(b); b = rotate90(b); b = rotate90(b); break;
+    case 5: b = mirrorH(b); b = rotate90(b); break;
+    case 6: b = mirrorV(b); b = rotate90(b); break;
+  }
+  const shift = Math.floor(Math.random() * 8) + 1;
+  b = b.map(v => v === 0 ? 0 : ((v - 1 + shift) % 9) + 1);
+  return b;
 }
 
 // ======== PUZZLE CREATION ========
@@ -459,8 +497,8 @@ let history = [];
 let notes = null;
 let notesMode = false;
 let hintPanelEl, hintAreaEl, boardEl, numpadEl, timerEl, mistakesEl, winOverlayEl, overlayMsgEl, confirmOverlayEl, btnNotesEl, containerEl;
-let puzzlePool = { 40: [], 50: [], 55: [] };
-let currentPoolIdx = { 40: 0, 50: 0, 55: 0 };
+let puzzlePool = { 40: [], 50: [], 60: [] };
+let currentPoolIdx = { 40: 0, 50: 0, 60: 0 };
 
 // ======== INIT ========
 function init() {
@@ -504,24 +542,31 @@ function isValidSolved(board) {
 }
 
 function initPuzzlePools() {
-  for (const d of [40, 50, 55]) {
+  for (const d of [40, 50]) {
     puzzlePool[d] = [];
     for (const s of STORED_PUZZLES[d]) {
       const b = s.split('').map(Number);
-      // Validate stored puzzle: must be valid, have unique solution, and be solvable
       if (isValidSolved([...b]) && hasUniqueSolution(b) && solve([...b])) {
         puzzlePool[d].push(b);
       } else {
-        // Fallback: generate a new valid source puzzle
         puzzlePool[d].push(generateSolvedPuzzle());
       }
     }
     currentPoolIdx[d] = 0;
     generationStarted[d] = false;
   }
+  // 60-empty: use pre-made puzzle+answer pairs
+  const data60 = STORED_PUZZLES[60];
+  puzzlePool[60] = data60.puzzles.map(p => ({
+    solved: data60.solved.split('').map(Number),
+    puzzle: p.split('').map(Number)
+  }));
+  currentPoolIdx[60] = 0;
+  generationStarted[60] = false;
 }
 
 function ensurePool(diff) {
+  if (diff === 60) return; // 60 uses pre-made puzzles, no generation needed
   if (puzzlePool[diff].length >= currentPoolIdx[diff] + 1) return;
   if (puzzlePool[diff].length < 20) {
     for (let i = 0; i < 5; i++) {
@@ -531,6 +576,10 @@ function ensurePool(diff) {
 }
 
 function getNextSourcePuzzle(diff) {
+  if (diff === 60) {
+    if (currentPoolIdx[60] >= puzzlePool[60].length) currentPoolIdx[60] = 0;
+    return puzzlePool[60][currentPoolIdx[60]++];
+  }
   if (currentPoolIdx[diff] >= puzzlePool[diff].length) {
     for (let i = 0; i < 5; i++) {
       puzzlePool[diff].push(generateSolvedPuzzle());
@@ -540,7 +589,7 @@ function getNextSourcePuzzle(diff) {
 }
 
 function startBackgroundGeneration() {
-  for (const d of [40, 50, 55]) {
+  for (const d of [40, 50]) {
     if (generationStarted[d]) continue;
     generationStarted[d] = true;
     let toGenerate = 15 - (puzzlePool[d].length - 5);
@@ -600,12 +649,19 @@ function newGame() {
   confirmOverlayEl.classList.remove('show');
 
   ensurePool(difficulty);
-  const source = getNextSourcePuzzle(difficulty);
-  const transformed = applyTransformations(source);
-  solved = transformed;
-  const requireLogic = difficulty <= 50;
-  const { puzzle: pzl } = createPuzzle(transformed, difficulty, requireLogic);
-  puzzle = pzl;
+  if (difficulty === 60) {
+    // 60-empty: use pre-made puzzle+answer pair
+    const pair = getNextSourcePuzzle(difficulty);
+    solved = applyTransformations(pair.solved);
+    puzzle = applyTransformationsReuse(pair.puzzle);
+  } else {
+    const source = getNextSourcePuzzle(difficulty);
+    const transformed = applyTransformations(source);
+    solved = transformed;
+    const requireLogic = difficulty <= 50;
+    const { puzzle: pzl } = createPuzzle(transformed, difficulty, requireLogic);
+    puzzle = pzl;
+  }
   playerBoard = [...puzzle];
   givenMask = puzzle.map(v => v !== 0);
 
@@ -676,7 +732,7 @@ function renderBoard() {
           inner.classList.add('same-row-col');
         }
       }
-      if (val !== 0 && !givenMask[idx] && solved[idx] !== val) {
+      if (val !== 0 && !givenMask[idx] && hasConflict(playerBoard, idx)) {
         inner.classList.add('error');
       }
 
@@ -714,7 +770,7 @@ function renderCell(r, c) {
   }
 
   if (r === selectedRow && c === selectedCol) inner.classList.add('selected');
-  if (val !== 0 && !givenMask[idx] && solved[idx] !== val) {
+  if (val !== 0 && !givenMask[idx] && hasConflict(playerBoard, idx)) {
     inner.classList.add('error');
   }
 }
@@ -794,8 +850,9 @@ function placeNumber(n) {
 
   playerBoard[idx] = n;
 
-  if (solved[idx] !== n) {
+  if (hasConflict(playerBoard, idx)) {
     mistakes++;
+    history[history.length - 1].isMistake = true;
     updateMistakes();
     renderCell(selectedRow, selectedCol);
     updateNumpad();
