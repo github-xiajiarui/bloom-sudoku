@@ -10,50 +10,54 @@ body {
   font-family: 'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
   background: linear-gradient(135deg, #fce4ec 0%, #f3e5f5 30%, #e8eaf6 60%, #fce4ec 100%);
   min-height: 100vh; min-height: 100dvh;
-  display: flex; justify-content: center; align-items: center;
+  display: flex; justify-content: center; align-items: flex-start;
+  padding-top: 8px;
   user-select: none; -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
-.container { max-width: 420px; width: 100%; padding: 10px 12px; }
+.container { max-width: 420px; width: 100%; padding: 0 12px 12px 12px; }
 
 /* Header */
-.header { text-align: center; margin-bottom: 6px; }
+.header { text-align: center; margin-bottom: 4px; }
 .header h1 {
-  display: inline; font-size: 26px;
+  display: inline; font-size: 24px;
   background: linear-gradient(135deg, #e91e63, #9c27b0, #7c3aed);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   background-clip: text; letter-spacing: 2px;
 }
-.version { font-size: 11px; color: #b39ddb; vertical-align: super; margin-left: 2px; }
+.version { font-size: 10px; color: #b39ddb; vertical-align: super; margin-left: 2px; }
 
 /* Difficulty */
-.diff-row { display: flex; gap: 7px; margin-bottom: 8px; justify-content: center; }
+.diff-row { display: flex; gap: 6px; margin-bottom: 6px; justify-content: center; }
 .diff-btn {
-  flex:1; padding: 8px 4px; border: 2px solid #e1bee7; border-radius: 14px;
-  background: #fff9fb; font-size: 13px; font-weight: 600; color: #7b1fa2;
-  cursor: pointer; transition: all .2s; max-width: 105px;
+  flex:1; padding: 7px 4px; border: 2px solid #e1bee7; border-radius: 13px;
+  background: #fff9fb; font-size: 12px; font-weight: 600; color: #7b1fa2;
+  cursor: pointer; transition: all .2s; max-width: 100px;
 }
 .diff-btn.active { background: linear-gradient(135deg, #f06292, #ab47bc); color: #fff; border-color: transparent; }
 
 /* Board */
 .board-wrap {
-  position: relative; background: #fff; border-radius: 18px; padding: 8px;
+  position: relative; background: #fff; border-radius: 16px; padding: 8px;
   box-shadow: 0 6px 24px rgba(156,39,176,.10);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .board-info {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 0 4px 6px 4px; font-size: 12px; font-weight: 600;
+  padding: 0 4px 5px 4px; font-size: 12px; font-weight: 600;
 }
 .board-info .mistakes { color: #e57373; }
 .board-info .timer { color: #9c27b0; }
 table { border-collapse: collapse; margin: 0 auto; width: 100%; max-width: 360px; table-layout: fixed; }
-td { width: 11.11%; padding: 0; vertical-align: top; }
+td {
+  width: 11.11%; padding: 0; vertical-align: top;
+  border: 0.5px dotted #d1c4e9;
+}
 .cell-wrap { position: relative; width: 100%; padding-bottom: 100%; }
 .cell-inner {
   position: absolute; inset: 1px; display: flex; align-items: center; justify-content: center;
   font-size: clamp(16px,5vw,24px); font-weight: 600;
-  border-radius: 7px; cursor: pointer; transition: background .15s;
+  border-radius: 6px; cursor: pointer; transition: background .15s;
   color: #5c007a;
 }
 
@@ -67,7 +71,7 @@ td { width: 11.11%; padding: 0; vertical-align: top; }
   font-size: clamp(7px,1.6vw,10px); font-weight: 500; color: #888; line-height: 1;
 }
 
-.cell-inner.given { color: #4a148c; font-weight: 700; cursor: default; }
+.cell-inner.given { color: #4a148c; font-weight: 700; }
 .cell-inner.player { color: #c62828; }
 .cell-inner.error {
   color: #d50000 !important; font-size: clamp(36px,10vw,48px) !important; font-weight: 900;
@@ -75,11 +79,11 @@ td { width: 11.11%; padding: 0; vertical-align: top; }
 }
 .cell-inner.hinted { color: #1565c0; animation: hintFlash .6s ease-in-out; }
 
-/* Grid borders */
+/* Grid borders - override dotted with solid for 3x3 block edges */
+td.left { border-left: 2.5px solid #7b1fa2; }
 td.right { border-right: 2.5px solid #7b1fa2; }
+td.top { border-top: 2.5px solid #7b1fa2; }
 td.bottom { border-bottom: 2.5px solid #7b1fa2; }
-td.left { border-left: 2.5px solid #e1bee7; }
-td.top { border-top: 2.5px solid #e1bee7; }
 
 /* Selection & highlights */
 .cell-inner.selected {
@@ -88,7 +92,7 @@ td.top { border-top: 2.5px solid #e1bee7; }
 }
 .cell-inner.same-num { background: rgba(233,30,99,.12); }
 .cell-inner.same-row-col { background: rgba(179,136,255,.10); }
-.notes-mode .cell-inner:not(.given) { background: rgba(255,215,0,.08); }
+.notes-mode .cell-inner:not(.given) { background: rgba(255,215,0,.06); }
 
 @keyframes breathe {
   0%,100% { box-shadow: 0 0 0 3px #e91e63; }
@@ -117,15 +121,8 @@ td.top { border-top: 2.5px solid #e1bee7; }
   100% { transform: translateY(-300px); opacity: 0; }
 }
 
-/* Num pad row (erase + 1-9) */
-.numpad-row { display: flex; gap: 4px; margin-bottom: 7px; justify-content: center; align-items: center; }
-.numpad-row .btn-erase {
-  width: 30px; height: 38px; border-radius: 10px; border: 2px solid #ffcdd2;
-  background: #fff; font-size: 16px; font-weight: 700; color: #ef5350;
-  cursor: pointer; transition: all .15s; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-}
-.numpad-row .btn-erase:active { background: #ff5252; color: #fff; }
+/* Num pad row (1-9 + erase at end) */
+.numpad-row { display: flex; gap: 3px; margin-bottom: 6px; justify-content: center; align-items: center; }
 .numpad { display: flex; gap: 3px; flex: 1; justify-content: center; }
 .numpad button {
   flex: 1; height: 38px; max-width: 34px; border-radius: 10px; border: 2px solid #e1bee7;
@@ -135,12 +132,19 @@ td.top { border-top: 2.5px solid #e1bee7; }
 .numpad button:active:not(:disabled) { background: #f06292; color: #fff; }
 .numpad button:disabled { opacity: .3; cursor: not-allowed; background: #f5f5f5; color: #ccc; }
 .numpad button.count-9 { border-color: #81c784; background: #e8f5e9; color: #a5d6a7; }
+.numpad-row .btn-erase {
+  width: 30px; height: 38px; border-radius: 10px; border: 2px solid #ffcdd2;
+  background: #fff; font-size: 16px; font-weight: 700; color: #ef5350;
+  cursor: pointer; transition: all .15s; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.numpad-row .btn-erase:active { background: #ff5252; color: #fff; }
 
 /* Action row */
-.actions { display: flex; gap: 6px; margin-bottom: 6px; justify-content: center; }
+.actions { display: flex; gap: 5px; margin-bottom: 0; justify-content: center; }
 .act-btn {
-  flex: 1; padding: 8px 4px; border-radius: 16px; border: none; font-size: 13px; font-weight: 600;
-  cursor: pointer; transition: all .2s; color: #fff; max-width: 90px; white-space: nowrap;
+  flex: 1; padding: 7px 4px; border-radius: 14px; border: none; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all .2s; color: #fff; max-width: 85px; white-space: nowrap;
 }
 .btn-notes { background: linear-gradient(135deg, #a5d6a7, #66bb6a); }
 .btn-notes.active { background: linear-gradient(135deg, #ffb74d, #ff9800); box-shadow: 0 0 0 3px rgba(255,152,0,.3); }
@@ -148,21 +152,23 @@ td.top { border-top: 2.5px solid #e1bee7; }
 .btn-undo { background: linear-gradient(135deg, #ffb74d, #ff9800); }
 .btn-new { background: linear-gradient(135deg, #ce93d8, #ab47bc); }
 
-/* Hint panel */
+/* Hint panel - reserved space with visibility toggle to prevent layout shift */
+.hint-area { min-height: 0; transition: min-height .2s; }
+.hint-area.active { min-height: 52px; }
 .hint-panel {
-  background: #fff; border-radius: 14px; padding: 10px 14px; margin-top: 6px;
+  background: #fff; border-radius: 12px; padding: 8px 12px; margin-top: 4px;
   box-shadow: 0 3px 12px rgba(0,0,0,.06); font-size: 12px; color: #37474f;
-  line-height: 1.5; display: none; word-break: break-all;
+  line-height: 1.5; visibility: hidden; word-break: break-all;
 }
-.hint-panel.show { display: block; animation: fadeIn .3s; }
-.hint-line1 { font-weight: 700; color: #6a1b9a; margin-bottom: 4px; }
+.hint-panel.show { visibility: visible; animation: fadeIn .3s; }
+.hint-line1 { font-weight: 700; color: #6a1b9a; margin-bottom: 3px; }
 .hint-line2 { color: #546e7a; }
-@keyframes fadeIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+@keyframes fadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
 
 /* Overlays */
 .overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex;
-  align-items: center; justify-content: center; z-index: 100; display: none;
+  position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none;
+  align-items: center; justify-content: center; z-index: 100;
 }
 .overlay.show { display: flex; }
 .overlay-inner {
@@ -186,7 +192,7 @@ td.top { border-top: 2.5px solid #e1bee7; }
   <div class="diff-row">
     <button class="diff-btn" data-diff="40">🌸 简单 40空</button>
     <button class="diff-btn active" data-diff="50">🌺 中等 50空</button>
-    <button class="diff-btn" data-diff="60">🌷 困难 60空</button>
+    <button class="diff-btn" data-diff="55">🌷 困难 55空</button>
   </div>
 
   <div class="board-wrap">
@@ -198,8 +204,8 @@ td.top { border-top: 2.5px solid #e1bee7; }
   </div>
 
   <div class="numpad-row">
-    <button class="btn-erase" onclick="eraseCell()" title="擦除">✕</button>
     <div class="numpad" id="numpad"></div>
+    <button class="btn-erase" onclick="eraseCell()" title="擦除">✕</button>
   </div>
 
   <div class="actions">
@@ -209,7 +215,9 @@ td.top { border-top: 2.5px solid #e1bee7; }
     <button class="act-btn btn-new" onclick="confirmNewGame()">🔄 重开</button>
   </div>
 
-  <div class="hint-panel" id="hintPanel"></div>
+  <div class="hint-area" id="hintArea">
+    <div class="hint-panel" id="hintPanel"></div>
+  </div>
 </div>
 
 <div class="overlay" id="winOverlay">
@@ -234,46 +242,47 @@ td.top { border-top: 2.5px solid #e1bee7; }
 <script>
 // ======== SUDOKU ENGINE ========
 
-const APP_VERSION = 'v4';
+const APP_VERSION = 'v5';
 
+// All stored puzzles validated for: valid solved grid, unique solution,
+// logically solvable (40/50 by naked+hidden singles; 55 by full backtracking)
 const STORED_PUZZLES = {
   40: [
-    '516837429734629815298415763641583297872946531953271648167352984429768153385194276',
-    '261739485849251376735846921914375268326198547578624193193562834452987619687413752',
-    '598126437216437589347589261769218354124365978835974126951642893483791642672853715',
-    '435269781961847352827531946546178239189423675273956814318695427694712583752384169',
-    '153267498278439156946518723324785619597641832681392547865924371712853964439176285'
+    '582413769714569382396287514437198256168325947259674831841932675623751498975846123',
+    '653124798247589163198637452386712549572498316419365827731256984865943271924871635',
+    '637124598895376214412589367263418975749265831158937642376851429981642753524793186',
+    '839124657267538419154679823425361798698457132713892546982715364341286975576943281',
+    '562173489134298657987456213415632798376589142298741365823914576651827934749365821'
   ],
   50: [
-    '812753649943682175675491283154237896369845721287169534521974368438526917796318452',
-    '721843956846592317593176284268734591437915628159268473314687249675429138982351746',
-    '381426597264759831957813624719245368823167459546938172195372486438691275672584913',
-    '917382546436591287528674931381946752749215863265837194673129458194758326852463719',
-    '624539718571284963938671452749312586186957324253846179415768293862193745397425861'
+    '298143567614572398753689142125897436469235871387416925831724659542968713976351284',
+    '856341297497526318321798564145267983268139745973854621534912876682475139719683452',
+    '742316958985247136163598472214789365378165249659423781496871523521634897837952614',
+    '561237849987145236423689157274391568135862974698754321716528493842973615359416782',
+    '869123547475698123321475698296314785147852936538967412754239861913586274682741359'
   ],
-  60: [
-    '174582963532649781896713245658491327321867459947235618415326879783954126269178534',
-    '917364528456128379283579164542893716178246935639751842324615897795482631861937452',
-    '627148953843592617915376824259731486468259731731864592196485273374612958582937146',
-    '486273915751469328239185467823941756567328149194756283312594876978612534645837192',
-    '359274816472861539186359247643715928825943671917628453531482769298736185764197382'
+  55: [
+    '715243698234689175698715243347562819829137564156498327482956731571324986963871452',
+    '926134758483576129715289346157862493234915687869347215541693872672458931398721564',
+    '571329486368147592429685371256938147784516923913274865832461759145792638697853214',
+    '842315679631297458957486123169723584274158396385649712516932847728564931493871265',
+    '128345697794186235635297148316529784457863912289471356573614829942738561861952473'
   ]
 };
 
-const generatedPuzzles = { 40: [], 50: [], 60: [] };
-let generationStarted = { 40: false, 50: false, 60: false };
+const generatedPuzzles = { 40: [], 50: [], 55: [] };
+let generationStarted = { 40: false, 50: false, 55: false };
 
 // ======== SOLVER ========
 function solve(board) {
   const empty = board.indexOf(0);
   if (empty === -1) return true;
   const r = Math.floor(empty / 9), c = empty % 9;
-  for (let n = 1; n <= 9; n++) {
-    if (isValidPlacement(board, r, c, n)) {
-      board[empty] = n;
-      if (solve(board)) return true;
-      board[empty] = 0;
-    }
+  const cands = getCandidates(board, r, c);
+  for (const n of cands) {
+    board[empty] = n;
+    if (solve(board)) return true;
+    board[empty] = 0;
   }
   return false;
 }
@@ -359,7 +368,7 @@ function rotate90(b) {
 }
 
 // ======== PUZZLE CREATION ========
-function createPuzzle(solved, emptyCount) {
+function createPuzzle(solved, emptyCount, requireLogic) {
   const puzzle = [...solved];
   const cells = shuffle([...Array(81).keys()]);
   let removed = 0;
@@ -368,15 +377,15 @@ function createPuzzle(solved, emptyCount) {
     const backup = puzzle[idx];
     puzzle[idx] = 0;
     const copy = [...puzzle];
-    if (solve(copy)) {
-      if (hasUniqueSolution([...puzzle])) {
+    if (solve(copy) && hasUniqueSolution([...puzzle])) {
+      if (!requireLogic || isLogicallySolvable([...puzzle])) {
         removed++;
         continue;
       }
     }
     puzzle[idx] = backup;
   }
-  return puzzle;
+  return { puzzle, removed };
 }
 
 function hasUniqueSolution(board) {
@@ -395,8 +404,45 @@ function hasUniqueSolution(board) {
       }
     }
   }
-  countSolve(board);
+  countSolve([...board]);
   return count === 1;
+}
+
+function isLogicallySolvable(puzzle) {
+  const board = [...puzzle];
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let i = 0; i < 81; i++) {
+      if (board[i] !== 0) continue;
+      const r = Math.floor(i / 9), c = i % 9;
+      const cands = getCandidates(board, r, c);
+      // Naked single
+      if (cands.length === 1) { board[i] = cands[0]; changed = true; continue; }
+      // Hidden single
+      for (const n of cands) {
+        let rowCount = 0, rowIdx = -1;
+        for (let j = 0; j < 9; j++) {
+          if (board[r * 9 + j] === 0 && getCandidates(board, r, j).includes(n)) { rowCount++; rowIdx = r * 9 + j; }
+        }
+        if (rowCount === 1) { board[rowIdx] = n; changed = true; break; }
+        let colCount = 0, colIdx = -1;
+        for (let j = 0; j < 9; j++) {
+          if (board[j * 9 + c] === 0 && getCandidates(board, j, c).includes(n)) { colCount++; colIdx = j * 9 + c; }
+        }
+        if (colCount === 1) { board[colIdx] = n; changed = true; break; }
+        let boxCount = 0, boxIdx = -1;
+        const br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
+        for (let i2 = br; i2 < br + 3; i2++)
+          for (let j2 = bc; j2 < bc + 3; j2++) {
+            if (board[i2 * 9 + j2] === 0 && getCandidates(board, i2, j2).includes(n)) { boxCount++; boxIdx = i2 * 9 + j2; }
+          }
+        if (boxCount === 1) { board[boxIdx] = n; changed = true; break; }
+      }
+      if (changed) break;
+    }
+  }
+  return board.indexOf(0) === -1;
 }
 
 // ======== GAME STATE ========
@@ -410,15 +456,16 @@ let mistakes = 0;
 let timeSec = 0;
 let timerInterval = null;
 let history = [];
-let notes = null;          // Array(81) of Set or null
+let notes = null;
 let notesMode = false;
-let hintPanelEl, boardEl, numpadEl, timerEl, mistakesEl, winOverlayEl, overlayMsgEl, confirmOverlayEl, btnNotesEl, containerEl;
-let puzzlePool = { 40: [], 50: [], 60: [] };
-let currentPoolIdx = { 40: 0, 50: 0, 60: 0 };
+let hintPanelEl, hintAreaEl, boardEl, numpadEl, timerEl, mistakesEl, winOverlayEl, overlayMsgEl, confirmOverlayEl, btnNotesEl, containerEl;
+let puzzlePool = { 40: [], 50: [], 55: [] };
+let currentPoolIdx = { 40: 0, 50: 0, 55: 0 };
 
 // ======== INIT ========
 function init() {
   hintPanelEl = document.getElementById('hintPanel');
+  hintAreaEl = document.getElementById('hintArea');
   boardEl = document.getElementById('board');
   numpadEl = document.getElementById('numpad');
   timerEl = document.getElementById('timer');
@@ -450,23 +497,22 @@ function isValidSolved(board) {
     const r = Math.floor(i / 9), c = i % 9;
     const val = board[i];
     board[i] = 0;
-    if (!isValidPlacement(board, r, c, val)) {
-      board[i] = val;
-      return false;
-    }
+    if (!isValidPlacement(board, r, c, val)) { board[i] = val; return false; }
     board[i] = val;
   }
   return true;
 }
 
 function initPuzzlePools() {
-  for (const d of [40, 50, 60]) {
+  for (const d of [40, 50, 55]) {
     puzzlePool[d] = [];
     for (const s of STORED_PUZZLES[d]) {
       const b = s.split('').map(Number);
-      if (isValidSolved([...b])) {
+      // Validate stored puzzle: must be valid, have unique solution, and be solvable
+      if (isValidSolved([...b]) && hasUniqueSolution(b) && solve([...b])) {
         puzzlePool[d].push(b);
       } else {
+        // Fallback: generate a new valid source puzzle
         puzzlePool[d].push(generateSolvedPuzzle());
       }
     }
@@ -494,7 +540,7 @@ function getNextSourcePuzzle(diff) {
 }
 
 function startBackgroundGeneration() {
-  for (const d of [40, 50, 60]) {
+  for (const d of [40, 50, 55]) {
     if (generationStarted[d]) continue;
     generationStarted[d] = true;
     let toGenerate = 15 - (puzzlePool[d].length - 5);
@@ -549,6 +595,7 @@ function newGame() {
   updateMistakes();
   hintPanelEl.classList.remove('show');
   hintPanelEl.innerHTML = '';
+  hintAreaEl.classList.remove('active');
   winOverlayEl.classList.remove('show');
   confirmOverlayEl.classList.remove('show');
 
@@ -556,7 +603,9 @@ function newGame() {
   const source = getNextSourcePuzzle(difficulty);
   const transformed = applyTransformations(source);
   solved = transformed;
-  puzzle = createPuzzle(transformed, difficulty);
+  const requireLogic = difficulty <= 50;
+  const { puzzle: pzl } = createPuzzle(transformed, difficulty, requireLogic);
+  puzzle = pzl;
   playerBoard = [...puzzle];
   givenMask = puzzle.map(v => v !== 0);
 
@@ -607,31 +656,26 @@ function renderBoard() {
       const val = playerBoard[idx];
 
       if (val !== 0) {
-        // Show the digit
         inner.textContent = val;
         inner.classList.add(givenMask[idx] ? 'given' : 'player');
       } else if (notes[idx] && notes[idx].size > 0) {
-        // Show notes grid
         inner.innerHTML = renderNotesGrid(notes[idx]);
       }
 
       if (r === selectedRow && c === selectedCol) inner.classList.add('selected');
 
-      // Highlight same number
       if (val !== 0 && selectedRow >= 0 && selectedCol >= 0) {
         const selVal = playerBoard[selectedRow * 9 + selectedCol];
         if (selVal !== 0 && val === selVal && idx !== selectedRow * 9 + selectedCol) {
           inner.classList.add('same-num');
         }
       }
-      // Highlight same row/col/box
       if (selectedRow >= 0 && selectedCol >= 0 && !(r === selectedRow && c === selectedCol)) {
         if (r === selectedRow || c === selectedCol ||
             (Math.floor(r/3) === Math.floor(selectedRow/3) && Math.floor(c/3) === Math.floor(selectedCol/3))) {
           inner.classList.add('same-row-col');
         }
       }
-      // Check error
       if (val !== 0 && !givenMask[idx] && solved[idx] !== val) {
         inner.classList.add('error');
       }
@@ -676,7 +720,7 @@ function renderCell(r, c) {
 }
 
 function selectCell(r, c) {
-  if (givenMask[r * 9 + c]) return;
+  // Allow selecting given cells for highlighting, but they can't be edited
   selectedRow = r; selectedCol = c;
   renderBoard();
   updateNumpad();
@@ -742,13 +786,10 @@ function placeNumber(n) {
   if (selectedRow < 0 || selectedCol < 0) return;
   const idx = selectedRow * 9 + selectedCol;
   if (givenMask[idx]) return;
-
   const prev = playerBoard[idx];
   if (prev === n) return;
 
-  // Clear notes for this cell
   if (notes[idx]) notes[idx] = null;
-
   history.push({ row: selectedRow, col: selectedCol, prev, isMistake: false, prevNotes: null });
 
   playerBoard[idx] = n;
@@ -776,7 +817,7 @@ function placeNote(n) {
   if (selectedRow < 0 || selectedCol < 0) return;
   const idx = selectedRow * 9 + selectedCol;
   if (givenMask[idx]) return;
-  if (playerBoard[idx] !== 0) return; // can't note on filled cell
+  if (playerBoard[idx] !== 0) return;
 
   const prevNotes = notes[idx] ? new Set(notes[idx]) : null;
   toggleNote(selectedRow, selectedCol, n);
@@ -795,7 +836,6 @@ function eraseCell() {
   const prev = playerBoard[idx];
   const prevNotes = notes[idx] ? new Set(notes[idx]) : null;
   history.push({ row: selectedRow, col: selectedCol, prev, isMistake: false, prevNotes });
-
   playerBoard[idx] = 0;
   notes[idx] = null;
   renderCell(selectedRow, selectedCol);
@@ -807,7 +847,6 @@ function undoMove() {
   const last = history.pop();
   playerBoard[last.row * 9 + last.col] = last.prev;
   if (last.isMistake) mistakes = Math.max(0, mistakes - 1);
-  // Restore notes
   if (last.prevNotes !== undefined) {
     notes[last.row * 9 + last.col] = last.prevNotes ? new Set(last.prevNotes) : null;
   }
@@ -822,88 +861,123 @@ function undoMove() {
 function showHint() {
   hintPanelEl.classList.remove('show');
   hintPanelEl.innerHTML = '';
+  hintAreaEl.classList.remove('active');
 
-  // Naked single
+  // Strategy 1: Naked single
   for (let i = 0; i < 81; i++) {
     if (playerBoard[i] !== 0) continue;
     const r = Math.floor(i / 9), c = i % 9;
     const cands = getCandidates(playerBoard, r, c);
     if (cands.length === 1) {
-      showHintResult(r, c, cands[0], 'naked', getCandidates(playerBoard, r, c));
+      showHintResult(r, c, cands[0], 'naked', cands);
       return;
     }
   }
 
-  // Hidden single
+  // Strategy 2: Hidden single
   for (let i = 0; i < 81; i++) {
     if (playerBoard[i] !== 0) continue;
     const r = Math.floor(i / 9), c = i % 9;
     const cands = getCandidates(playerBoard, r, c);
     for (const n of cands) {
-      let unique = false;
-      let scope = '';
-      let rowCount = 0;
+      let scope = '', idx = -1;
+      let rowCount = 0, rowIdx = -1;
       for (let j = 0; j < 9; j++) {
-        if (j !== c && playerBoard[r * 9 + j] === 0 && getCandidates(playerBoard, r, j).includes(n))
-          rowCount++;
+        if (playerBoard[r * 9 + j] === 0 && getCandidates(playerBoard, r, j).includes(n)) { rowCount++; rowIdx = r * 9 + j; }
       }
-      if (rowCount === 0) { unique = true; scope = `第${r+1}行`; }
-      if (!unique) {
-        let colCount = 0;
+      if (rowCount === 1) { scope = `第${r+1}行`; idx = rowIdx; }
+      if (!scope) {
+        let colCount = 0, colIdx = -1;
         for (let j = 0; j < 9; j++) {
-          if (j !== r && playerBoard[j * 9 + c] === 0 && getCandidates(playerBoard, j, c).includes(n))
-            colCount++;
+          if (playerBoard[j * 9 + c] === 0 && getCandidates(playerBoard, j, c).includes(n)) { colCount++; colIdx = j * 9 + c; }
         }
-        if (colCount === 0) { unique = true; scope = `第${c+1}列`; }
+        if (colCount === 1) { scope = `第${c+1}列`; idx = colIdx; }
       }
-      if (!unique) {
-        let boxCount = 0;
+      if (!scope) {
+        let boxCount = 0, boxIdx = -1;
         const br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
         for (let i2 = br; i2 < br + 3; i2++)
           for (let j2 = bc; j2 < bc + 3; j2++) {
-            if ((i2 !== r || j2 !== c) && playerBoard[i2 * 9 + j2] === 0 && getCandidates(playerBoard, i2, j2).includes(n))
-              boxCount++;
+            if (playerBoard[i2 * 9 + j2] === 0 && getCandidates(playerBoard, i2, j2).includes(n)) { boxCount++; boxIdx = i2 * 9 + j2; }
           }
-        if (boxCount === 0) { unique = true; scope = `第${Math.floor(r/3)+1}行第${Math.floor(c/3)+1}列的宫`; }
+        if (boxCount === 1) { scope = `第${Math.floor(r/3)+1}行第${Math.floor(c/3)+1}列的宫`; idx = boxIdx; }
       }
-      if (unique) {
-        showHintResult(r, c, n, 'hidden', cands, scope);
+      if (scope) {
+        const hr = Math.floor(idx / 9), hc = idx % 9;
+        showHintResult(hr, hc, n, 'hidden', getCandidates(playerBoard, hr, hc), scope);
         return;
       }
     }
   }
 
-  hintPanelEl.innerHTML = '<div class="hint-line1">当前没有可推导的确定数字</div><div class="hint-line2">请尝试在其他位置填入数字后再使用提示</div>';
-  hintPanelEl.classList.add('show');
-}
-
-function buildNakedSingleMessage(r, c, n, cands) {
-  const excluded = [];
-  for (let x = 1; x <= 9; x++) {
-    if (!cands.includes(x)) excluded.push(x);
+  // Strategy 3: Brute force — try each candidate for each empty cell
+  for (let i = 0; i < 81; i++) {
+    if (playerBoard[i] !== 0) continue;
+    const r = Math.floor(i / 9), c = i % 9;
+    const cands = getCandidates(playerBoard, r, c);
+    if (cands.length === 0) continue;
+    const validCands = [];
+    for (const n of cands) {
+      const testBoard = [...playerBoard];
+      testBoard[i] = n;
+      if (solve(testBoard)) validCands.push(n);
+    }
+    if (validCands.length === 1) {
+      showHintResult(r, c, validCands[0], 'bruteforce', cands);
+      return;
+    }
   }
-  return {
-    line1: `R${r+1}C${c+1}（第${r+1}行第${c+1}列）→ 填入 <b style="color:#e91e63;font-size:17px;">${n}</b>　<span style="font-size:11px;color:#888;">唯余法 Naked Single</span>`,
-    line2: `该格所在行、列、宫中已有 <b>${excluded.join(', ')}</b>，排除后仅剩候选数 <b>${n}</b>`
-  };
-}
 
-function buildHiddenSingleMessage(r, c, n, scope) {
-  return {
-    line1: `R${r+1}C${c+1}（第${r+1}行第${c+1}列）→ 填入 <b style="color:#e91e63;font-size:17px;">${n}</b>　<span style="font-size:11px;color:#888;">隐式唯一 Hidden Single</span>`,
-    line2: `在 <b>${scope}</b> 中，数字 <b>${n}</b> 只能出现在 R${r+1}C${c+1}，该区域内其他空格均无法填入 ${n}`
-  };
+  // Strategy 4: If no single-candidate cell, show cell with fewest valid candidates
+  let bestResult = null;
+  let bestCount = Infinity;
+  for (let i = 0; i < 81; i++) {
+    if (playerBoard[i] !== 0) continue;
+    const r = Math.floor(i / 9), c = i % 9;
+    const cands = getCandidates(playerBoard, r, c);
+    const validCands = [];
+    for (const n of cands) {
+      const testBoard = [...playerBoard];
+      testBoard[i] = n;
+      if (solve(testBoard)) validCands.push(n);
+    }
+    if (validCands.length > 0 && validCands.length < bestCount) {
+      bestCount = validCands.length;
+      bestResult = { r, c, n: validCands[0], cands: validCands.slice() };
+    }
+  }
+
+  if (bestResult) {
+    showHintResult(bestResult.r, bestResult.c, bestResult.n, 'bruteforce-multi', bestResult.cands);
+    return;
+  }
+
+  hintPanelEl.innerHTML = '<div class="hint-line1">当前局面异常，请开始新游戏</div>';
+  hintPanelEl.classList.add('show');
+  hintAreaEl.classList.add('active');
 }
 
 function showHintResult(r, c, n, type, cands, scope) {
-  let msg;
+  let line1 = '', line2 = '';
   if (type === 'naked') {
-    msg = buildNakedSingleMessage(r, c, n, cands);
-  } else {
-    msg = buildHiddenSingleMessage(r, c, n, scope);
+    const excluded = [];
+    for (let x = 1; x <= 9; x++) { if (!cands.includes(x)) excluded.push(x); }
+    line1 = `R${r+1}C${c+1}（第${r+1}行第${c+1}列）→ 填入 <b style="color:#e91e63;font-size:17px;">${n}</b>　<span style="font-size:11px;color:#888;">唯余法</span>`;
+    line2 = `该格行/列/宫中已有 <b>${excluded.join(', ')}</b>，仅剩候选数 <b>${n}</b>`;
+  } else if (type === 'hidden') {
+    line1 = `R${r+1}C${c+1}（第${r+1}行第${c+1}列）→ 填入 <b style="color:#e91e63;font-size:17px;">${n}</b>　<span style="font-size:11px;color:#888;">隐式唯一</span>`;
+    line2 = `在 <b>${scope}</b> 中，数字 <b>${n}</b> 只能出现在 R${r+1}C${c+1}，该区域内其他空格均无法填入 ${n}`;
+  } else if (type === 'bruteforce') {
+    line1 = `R${r+1}C${c+1}（第${r+1}行第${c+1}列）→ 填入 <b style="color:#e91e63;font-size:17px;">${n}</b>　<span style="font-size:11px;color:#888;">回溯推导</span>`;
+    line2 = `尝试该格其他候选数（${cands.filter(x=>x!==n).join(', ')}）均无法完成棋盘，仅 <b>${n}</b> 可得到合法终局`;
+  } else if (type === 'bruteforce-multi') {
+    line1 = `R${r+1}C${c+1}（第${r+1}行第${c+1}列）→ 建议 <b style="color:#e91e63;font-size:17px;">${n}</b>　<span style="font-size:11px;color:#888;">回溯推导</span>`;
+    line2 = `该格候选数为 {${cands.join(', ')}}，均能完成棋盘。建议先尝试 <b>${n}</b>，或结合其他约束进一步分析`;
   }
-  hintPanelEl.innerHTML = `<div class="hint-line1">${msg.line1}</div><div class="hint-line2">${msg.line2}</div>`;
+
+  hintPanelEl.innerHTML = `<div class="hint-line1">${line1}</div><div class="hint-line2">${line2}</div>`;
   hintPanelEl.classList.add('show');
+  hintAreaEl.classList.add('active');
 
   const idx = r * 9 + c;
   if (notes[idx]) notes[idx] = null;
