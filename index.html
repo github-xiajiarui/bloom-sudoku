@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>数独 · Bloom Sudoku</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
+  background: linear-gradient(135deg, #fce4ec 0%, #f3e5f5 30%, #e8eaf6 60%, #fce4ec 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+  display: flex; justify-content: center; align-items: center;
+  user-select: none; -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.container { max-width: 420px; width: 100%; padding: 12px; }
+
+/* Header */
+.header { text-align: center; margin-bottom: 8px; }
+.header h1 {
+  font-size: 28px; background: linear-gradient(135deg, #e91e63, #9c27b0, #7c3aed);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; letter-spacing: 2px;
+}
+
+/* Difficulty */
+.diff-row { display: flex; gap: 8px; margin-bottom: 10px; justify-content: center; }
+.diff-btn {
+  flex:1; padding: 10px 6px; border: 2px solid #e1bee7; border-radius: 16px;
+  background: #fff9fb; font-size: 14px; font-weight: 600; color: #7b1fa2;
+  cursor: pointer; transition: all .2s; max-width: 110px;
+}
+.diff-btn.active { background: linear-gradient(135deg, #f06292, #ab47bc); color: #fff; border-color: transparent; }
+
+/* Board */
+.board-wrap {
+  background: #fff; border-radius: 20px; padding: 8px;
+  box-shadow: 0 8px 32px rgba(156,39,176,.12);
+  margin-bottom: 10px;
+}
+table { border-collapse: collapse; margin: 0 auto; width: 100%; max-width: 360px; }
+td { position: relative; width: 11.11%; aspect-ratio: 1; }
+td:after { content:''; display:block; padding-bottom:100%; }
+.cell-inner {
+  position: absolute; inset: 1px; display: flex; align-items: center; justify-content: center;
+  font-size: clamp(16px,5vw,24px); font-weight: 600;
+  border-radius: 8px; cursor: pointer; transition: background .15s;
+  color: #5c007a;
+}
+.cell-inner.given { color: #4a148c; font-weight: 700; cursor: default; }
+.cell-inner.player { color: #c62828; }
+.cell-inner.error {
+  color: #d50000 !important; font-size: clamp(36px,10vw,48px) !important; font-weight: 900;
+  animation: errorPulse .5s ease-in-out;
+}
+.cell-inner.hinted { color: #1565c0; animation: hintFlash .6s ease-in-out; }
+
+/* Grid borders */
+td.right { border-right: 2.5px solid #7b1fa2; }
+td.bottom { border-bottom: 2.5px solid #7b1fa2; }
+td.left { border-left: 2.5px solid #e1bee7; }
+td.top { border-top: 2.5px solid #e1bee7; }
+
+/* Selection & same-number highlight */
+.cell-inner.selected {
+  box-shadow: 0 0 0 3px #e91e63;
+  animation: breathe 1.6s ease-in-out infinite;
+}
+.cell-inner.same-num { background: rgba(233,30,99,.12); }
+.cell-inner.same-row-col { background: rgba(179,136,255,.10); }
+
+@keyframes breathe {
+  0%,100% { box-shadow: 0 0 0 3px #e91e63; }
+  50% { box-shadow: 0 0 0 8px rgba(233,30,99,.25), 0 0 0 3px #e91e63; }
+}
+@keyframes errorPulse {
+  0%,100% { transform: scale(1); }
+  50% { transform: scale(1.15); color: #ff1744; }
+}
+@keyframes hintFlash {
+  0% { background: rgba(21,101,192,.35); transform: scale(1.08); }
+  100% { background: transparent; transform: scale(1); }
+}
+@keyframes dropBounce {
+  0% { transform: translateY(-200px); opacity: 0; }
+  55% { transform: translateY(4px); opacity: 1; }
+  70% { transform: translateY(-6px); }
+  85% { transform: translateY(3px); }
+  100% { transform: translateY(0); }
+}
+@keyframes flyUp {
+  0% { transform: translateY(0); opacity: 1; }
+  40% { transform: translateY(-8px); }
+  60% { transform: translateY(4px); }
+  80% { transform: translateY(-6px); }
+  100% { transform: translateY(-300px); opacity: 0; }
+}
+
+/* Num pad */
+.numpad { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; margin-bottom: 10px; }
+.numpad button {
+  width: 34px; height: 42px; border-radius: 12px; border: 2px solid #e1bee7;
+  background: #fff; font-size: 20px; font-weight: 700; color: #6a1b9a;
+  cursor: pointer; transition: all .15s;
+}
+.numpad button:active:not(:disabled) { background: #f06292; color: #fff; }
+.numpad button:disabled { opacity: .3; cursor: not-allowed; background: #f5f5f5; color: #ccc; }
+.numpad button.count-9 { border-color: #81c784; background: #e8f5e9; color: #a5d6a7; }
+
+/* Actions */
+.actions { display: flex; gap: 8px; margin-bottom: 8px; justify-content: center; flex-wrap: wrap; }
+.act-btn {
+  padding: 10px 18px; border-radius: 20px; border: none; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all .2s; color: #fff;
+}
+.btn-erase { background: linear-gradient(135deg, #ff8a80, #ff5252); }
+.btn-hint { background: linear-gradient(135deg, #64b5f6, #42a5f5); }
+.btn-new { background: linear-gradient(135deg, #ce93d8, #ab47bc); }
+.btn-undo { background: linear-gradient(135deg, #ffb74d, #ff9800); }
+
+/* Hint panel */
+.hint-panel {
+  background: #fff; border-radius: 16px; padding: 12px 14px; margin-top: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.08); font-size: 13px; color: #37474f;
+  line-height: 1.6; display: none;
+}
+.hint-panel.show { display: block; animation: fadeIn .3s; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+
+/* Completed overlay */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex;
+  align-items: center; justify-content: center; z-index: 100; display: none;
+}
+.overlay.show { display: flex; }
+.overlay-inner {
+  background: #fff; border-radius: 24px; padding: 28px 24px; text-align: center;
+  max-width: 320px; width: 90%;
+}
+.overlay-inner h2 { color: #7b1fa2; margin-bottom: 10px; font-size: 22px; }
+.overlay-inner p { color: #666; margin-bottom: 14px; font-size: 14px; }
+
+/* Timer */
+.timer { text-align: center; font-size: 15px; color: #9c27b0; margin-bottom: 6px; font-weight: 500; }
+.mistakes { text-align: center; font-size: 13px; color: #e57373; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header"><h1>Bloom Sudoku</h1></div>
+
+  <div class="diff-row">
+    <button class="diff-btn" data-diff="40">🌸 简单 40空</button>
+    <button class="diff-btn active" data-diff="50">🌺 中等 50空</button>
+    <button class="diff-btn" data-diff="60">🌷 困难 60空</button>
+  </div>
+
+  <div class="timer" id="timer">⏱ 00:00</div>
+  <div class="mistakes" id="mistakes">错误: 0/3</div>
+
+  <div class="board-wrap">
+    <table id="board"></table>
+  </div>
+
+  <div class="numpad" id="numpad"></div>
+
+  <div class="actions">
+    <button class="act-btn btn-erase" onclick="eraseCell()">🧹 擦除</button>
+    <button class="act-btn btn-hint" onclick="showHint()">💡 提示</button>
+    <button class="act-btn btn-undo" onclick="undoMove()">↩ 撤销</button>
+    <button class="act-btn btn-new" onclick="newGame()">🔄 新游戏</button>
+  </div>
+
+  <div class="hint-panel" id="hintPanel"></div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="overlay-inner">
+    <h2>🎉 恭喜通关！</h2>
+    <p id="overlayMsg"></p>
+    <button class="act-btn btn-new" onclick="closeOverlay();newGame()">再来一局</button>
+  </div>
+</div>
+
+<script>
+// ======== SUDOKU ENGINE ========
+
+// Pre-stored solved source puzzles (5 per difficulty → 15 total)
+// Each is an 81-char string, row-major
+const STORED_PUZZLES = {
+  40: [
+    '516837429734629815298415763641583297872946531953271648167352984429768153385194276',
+    '261739485849251376735846921914375268326198547578624193193562834452987619687413752',
+    '598126437216437589347589261769218354124365978835974126951642893483791642672853715',
+    '435269781961847352827531946546178239189423675273956814318695427694712583752384169',
+    '153267498278439156946518723324785619597641832681392547865924371712853964439176285'
+  ],
+  50: [
+    '812753649943682175675491283154237896369845721287169534521974368438526917796318452',
+    '721843956846592317593176284268734591437915628159268473314687249675429138982351746',
+    '381426597264759831957813624719245368823167459546938172195372486438691275672584913',
+    '917382546436591287528674931381946752749215863265837194673129458194758326852463719',
+    '624539718571284963938671452749312586186957324253846179415768293862193745397425861'
+  ],
+  60: [
+    '174582963532649781896713245658491327321867459947235618415326879783954126269178534',
+    '917364528456128379283579164542893716178246935639751842324615897795482631861937452',
+    '627148953843592617915376824259731486468259731731864592196485273374612958582937146',
+    '486273915751469328239185467823941756567328149194756283312594876978612534645837192',
+    '359274816472861539186359247643715928825943671917628453531482769298736185764197382'
+  ]
+};
+
+// Additional generated source puzzles (15 per difficulty, filled in background)
+const generatedPuzzles = { 40: [], 50: [], 60: [] };
+let generationStarted = { 40: false, 50: false, 60: false };
+
+// ======== SOLVER ========
+function solve(board) {
+  // board is a flat array of 81, 0 = empty
+  const empty = board.indexOf(0);
+  if (empty === -1) return true;
+  const r = Math.floor(empty / 9), c = empty % 9;
+  for (let n = 1; n <= 9; n++) {
+    if (isValidPlacement(board, r, c, n)) {
+      board[empty] = n;
+      if (solve(board)) return true;
+      board[empty] = 0;
+    }
+  }
+  return false;
+}
+
+function isValidPlacement(board, r, c, n) {
+  for (let i = 0; i < 9; i++) {
+    if (board[r * 9 + i] === n) return false;
+    if (board[i * 9 + c] === n) return false;
+  }
+  const br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
+  for (let i = br; i < br + 3; i++)
+    for (let j = bc; j < bc + 3; j++)
+      if (board[i * 9 + j] === n) return false;
+  return true;
+}
+
+function getCandidates(board, r, c) {
+  const cands = [];
+  for (let n = 1; n <= 9; n++)
+    if (isValidPlacement(board, r, c, n)) cands.push(n);
+  return cands;
+}
+
+// Generate a fully solved puzzle by solving an empty grid with random fill
+function generateSolvedPuzzle() {
+  const board = new Array(81).fill(0);
+  // Fill diagonal 3x3 blocks first (they don't affect each other)
+  for (let b = 0; b < 3; b++) {
+    const nums = shuffle([1,2,3,4,5,6,7,8,9]);
+    let idx = 0;
+    for (let i = b * 3; i < b * 3 + 3; i++)
+      for (let j = b * 3; j < b * 3 + 3; j++)
+        board[i * 9 + j] = nums[idx++];
+  }
+  solve(board);
+  return board;
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ======== TRANSFORMATIONS ========
+function applyTransformations(board) {
+  // board is a flat 81-array of the solved puzzle
+  let b = [...board];
+  const op = Math.floor(Math.random() * 7);
+
+  switch (op) {
+    case 0: b = mirrorH(b); break;       // horizontal mirror
+    case 1: b = mirrorV(b); break;       // vertical mirror
+    case 2: b = rotate90(b); break;      // rotate 90
+    case 3: b = rotate90(b); b = rotate90(b); break; // rotate 180
+    case 4: b = rotate90(b); b = rotate90(b); b = rotate90(b); break; // rotate 270
+    case 5: b = mirrorH(b); b = rotate90(b); break; // mirror + rotate
+    case 6: b = mirrorV(b); b = rotate90(b); break;
+  }
+
+  // Digit shift: add N (1..8) then mod to 1-9
+  const shift = Math.floor(Math.random() * 8) + 1;
+  b = b.map(v => ((v - 1 + shift) % 9) + 1);
+
+  return b;
+}
+
+function mirrorH(b) {
+  const r = [];
+  for (let i = 0; i < 9; i++)
+    for (let j = 0; j < 9; j++)
+      r[i * 9 + j] = b[i * 9 + (8 - j)];
+  return r;
+}
+function mirrorV(b) {
+  const r = [];
+  for (let i = 0; i < 9; i++)
+    for (let j = 0; j < 9; j++)
+      r[i * 9 + j] = b[(8 - i) * 9 + j];
+  return r;
+}
+function rotate90(b) {
+  const r = [];
+  for (let i = 0; i < 9; i++)
+    for (let j = 0; j < 9; j++)
+      r[j * 9 + (8 - i)] = b[i * 9 + j];
+  return r;
+}
+
+// ======== PUZZLE CREATION ========
+function createPuzzle(solved, emptyCount) {
+  // solved: flat 81 solved array
+  // emptyCount: 40, 50, or 60
+  const puzzle = [...solved];
+  const cells = shuffle([...Array(81).keys()]);
+  let removed = 0;
+  for (const idx of cells) {
+    if (removed >= emptyCount) break;
+    const backup = puzzle[idx];
+    puzzle[idx] = 0;
+    // Verify unique solution (quick check: try solving)
+    const copy = [...puzzle];
+    if (solve(copy)) {
+      // Check uniqueness by trying different values
+      if (hasUniqueSolution([...puzzle])) {
+        removed++;
+        continue;
+      }
+    }
+    puzzle[idx] = backup; // revert
+  }
+  return puzzle;
+}
+
+function hasUniqueSolution(board) {
+  // Count solutions, stop at 2
+  let count = 0;
+  function countSolve(b) {
+    if (count >= 2) return;
+    const empty = b.indexOf(0);
+    if (empty === -1) { count++; return; }
+    const r = Math.floor(empty / 9), c = empty % 9;
+    for (let n = 1; n <= 9; n++) {
+      if (isValidPlacement(b, r, c, n)) {
+        b[empty] = n;
+        countSolve(b);
+        b[empty] = 0;
+        if (count >= 2) return;
+      }
+    }
+  }
+  countSolve(board);
+  return count === 1;
+}
+
+// ======== GAME STATE ========
+let difficulty = 50;
+let solved = null;      // solved version (flat 81)
+let puzzle = null;      // puzzle with blanks (flat 81, 0=empty)
+let playerBoard = null; // what player has filled (flat 81)
+let givenMask = null;   // which cells were given initially
+let selectedRow = -1, selectedCol = -1;
+let mistakes = 0;
+let timeSec = 0;
+let timerInterval = null;
+let history = [];
+let hintPanelEl, boardEl, numpadEl, timerEl, mistakesEl, overlayEl, overlayMsgEl;
+let puzzlePool = { 40: [], 50: [], 60: [] };
+let currentPoolIdx = { 40: 0, 50: 0, 60: 0 };
+
+// ======== INIT ========
+function init() {
+  hintPanelEl = document.getElementById('hintPanel');
+  boardEl = document.getElementById('board');
+  numpadEl = document.getElementById('numpad');
+  timerEl = document.getElementById('timer');
+  mistakesEl = document.getElementById('mistakes');
+  overlayEl = document.getElementById('overlay');
+  overlayMsgEl = document.getElementById('overlayMsg');
+
+  document.querySelectorAll('.diff-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      difficulty = parseInt(btn.dataset.diff);
+      newGame();
+    });
+  });
+
+  buildNumpad();
+  initPuzzlePools();
+  newGame();
+}
+
+function isValidSolved(board) {
+  // Verify a flat 81-array is a valid, fully filled sudoku
+  for (let i = 0; i < 81; i++) {
+    if (board[i] < 1 || board[i] > 9) return false;
+    const r = Math.floor(i / 9), c = i % 9;
+    const val = board[i];
+    // Temporarily clear and check
+    board[i] = 0;
+    if (!isValidPlacement(board, r, c, val)) {
+      board[i] = val;
+      return false;
+    }
+    board[i] = val;
+  }
+  return true;
+}
+
+function initPuzzlePools() {
+  for (const d of [40, 50, 60]) {
+    puzzlePool[d] = [];
+    for (const s of STORED_PUZZLES[d]) {
+      const b = s.split('').map(Number);
+      if (isValidSolved([...b])) {
+        puzzlePool[d].push(b);
+      } else {
+        puzzlePool[d].push(generateSolvedPuzzle());
+      }
+    }
+    currentPoolIdx[d] = 0;
+    generationStarted[d] = false;
+  }
+}
+
+function ensurePool(diff) {
+  if (puzzlePool[diff].length >= currentPoolIdx[diff] + 1) return;
+  // Generate more if needed
+  if (puzzlePool[diff].length < 20) {
+    for (let i = 0; i < 5; i++) {
+      puzzlePool[diff].push(generateSolvedPuzzle());
+    }
+  }
+}
+
+function getNextSourcePuzzle(diff) {
+  if (currentPoolIdx[diff] >= puzzlePool[diff].length) {
+    // Generate more
+    for (let i = 0; i < 5; i++) {
+      puzzlePool[diff].push(generateSolvedPuzzle());
+    }
+  }
+  return puzzlePool[diff][currentPoolIdx[diff]++];
+}
+
+function startBackgroundGeneration() {
+  for (const d of [40, 50, 60]) {
+    if (generationStarted[d]) continue;
+    generationStarted[d] = true;
+    // Use setTimeout chain to generate without blocking
+    let toGenerate = 15 - (puzzlePool[d].length - 5); // we already have 5 stored
+    if (toGenerate <= 0) continue;
+    function genOne(diff, remaining) {
+      if (remaining <= 0) return;
+      puzzlePool[diff].push(generateSolvedPuzzle());
+      setTimeout(() => genOne(diff, remaining - 1), 200);
+    }
+    setTimeout(() => genOne(d, toGenerate), 500);
+  }
+}
+
+// ======== NEW GAME ========
+function newGame() {
+  stopTimer();
+  mistakes = 0;
+  timeSec = 0;
+  history = [];
+  selectedRow = -1; selectedCol = -1;
+  updateTimer();
+  updateMistakes();
+  hintPanelEl.classList.remove('show');
+  hintPanelEl.innerHTML = '';
+  overlayEl.classList.remove('show');
+
+  ensurePool(difficulty);
+  const source = getNextSourcePuzzle(difficulty);
+  const transformed = applyTransformations(source);
+  solved = transformed;
+  puzzle = createPuzzle(transformed, difficulty);
+  playerBoard = [...puzzle];
+  givenMask = puzzle.map(v => v !== 0);
+
+  renderBoard();
+  updateNumpad();
+  startBackgroundGeneration();
+
+  // Animate given numbers dropping in
+  animateGivenDrop();
+}
+
+function animateGivenDrop() {
+  const cells = document.querySelectorAll('.cell-inner.given');
+  cells.forEach((el, i) => {
+    el.style.animation = 'none';
+    el.offsetHeight; // reflow
+    el.style.animation = `dropBounce .6s ease-out forwards`;
+    el.style.animationDelay = `${i * 15}ms`;
+  });
+}
+
+// ======== RENDER ========
+function renderBoard() {
+  boardEl.innerHTML = '';
+  for (let r = 0; r < 9; r++) {
+    const tr = document.createElement('tr');
+    for (let c = 0; c < 9; c++) {
+      const td = document.createElement('td');
+      if (c % 3 === 0) td.classList.add('left');
+      if (c === 8) td.classList.add('right');
+      if (c % 3 === 2 && c !== 8) td.classList.add('right');
+      if (r % 3 === 0) td.classList.add('top');
+      if (r === 8) td.classList.add('bottom');
+      if (r % 3 === 2 && r !== 8) td.classList.add('bottom');
+
+      const inner = document.createElement('div');
+      inner.className = 'cell-inner';
+      const val = playerBoard[r * 9 + c];
+      if (val !== 0) {
+        inner.textContent = val;
+        inner.classList.add(givenMask[r * 9 + c] ? 'given' : 'player');
+      }
+      if (r === selectedRow && c === selectedCol) inner.classList.add('selected');
+      // Highlight same number
+      if (val !== 0 && selectedRow >= 0 && selectedCol >= 0) {
+        const selVal = playerBoard[selectedRow * 9 + selectedCol];
+        if (selVal !== 0 && val === selVal && !(r === selectedRow && c === selectedCol)) {
+          inner.classList.add('same-num');
+        }
+      }
+      // Highlight same row/col
+      if (selectedRow >= 0 && selectedCol >= 0 && !(r === selectedRow && c === selectedCol)) {
+        if (r === selectedRow || c === selectedCol ||
+            (Math.floor(r/3) === Math.floor(selectedRow/3) && Math.floor(c/3) === Math.floor(selectedCol/3))) {
+          inner.classList.add('same-row-col');
+        }
+      }
+      // Check error
+      if (val !== 0 && !givenMask[r * 9 + c] && solved[r * 9 + c] !== val) {
+        inner.classList.add('error');
+      }
+
+      inner.addEventListener('click', () => selectCell(r, c));
+      td.appendChild(inner);
+      tr.appendChild(td);
+    }
+    boardEl.appendChild(tr);
+  }
+}
+
+function renderCell(r, c) {
+  // Re-render just one cell
+  const inner = boardEl.rows[r].cells[c].querySelector('.cell-inner');
+  const val = playerBoard[r * 9 + c];
+  inner.textContent = val || '';
+  inner.className = 'cell-inner';
+  if (val !== 0) {
+    inner.classList.add(givenMask[r * 9 + c] ? 'given' : 'player');
+  }
+  if (r === selectedRow && c === selectedCol) inner.classList.add('selected');
+  if (val !== 0 && !givenMask[r * 9 + c] && solved[r * 9 + c] !== val) {
+    inner.classList.add('error');
+  }
+}
+
+function selectCell(r, c) {
+  if (givenMask[r * 9 + c]) return; // can't select given cells
+  selectedRow = r; selectedCol = c;
+  renderBoard();
+  updateNumpad();
+}
+
+function buildNumpad() {
+  numpadEl.innerHTML = '';
+  for (let n = 1; n <= 9; n++) {
+    const btn = document.createElement('button');
+    btn.textContent = n;
+    btn.addEventListener('click', () => placeNumber(n));
+    numpadEl.appendChild(btn);
+  }
+}
+
+function updateNumpad() {
+  const buttons = numpadEl.querySelectorAll('button');
+  const counts = new Array(10).fill(0);
+  for (let i = 0; i < 81; i++) {
+    if (playerBoard[i] !== 0) counts[playerBoard[i]]++;
+  }
+
+  // Check row/col/box restrictions when a cell is selected
+  let restrictedNums = new Set();
+  if (selectedRow >= 0 && selectedCol >= 0) {
+    const r = selectedRow, c = selectedCol;
+    // Row: if only 1 empty in this row, restrict the 8 filled nums
+    let rowEmpties = 0, rowNums = new Set();
+    for (let j = 0; j < 9; j++) {
+      if (playerBoard[r * 9 + j] === 0) rowEmpties++;
+      else rowNums.add(playerBoard[r * 9 + j]);
+    }
+    if (rowEmpties === 1) rowNums.forEach(n => restrictedNums.add(n));
+
+    // Column
+    let colEmpties = 0, colNums = new Set();
+    for (let i = 0; i < 9; i++) {
+      if (playerBoard[i * 9 + c] === 0) colEmpties++;
+      else colNums.add(playerBoard[i * 9 + c]);
+    }
+    if (colEmpties === 1) colNums.forEach(n => restrictedNums.add(n));
+
+    // Box
+    let boxEmpties = 0, boxNums = new Set();
+    const br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
+    for (let i = br; i < br + 3; i++)
+      for (let j = bc; j < bc + 3; j++) {
+        if (playerBoard[i * 9 + j] === 0) boxEmpties++;
+        else boxNums.add(playerBoard[i * 9 + j]);
+      }
+    if (boxEmpties === 1) boxNums.forEach(n => restrictedNums.add(n));
+  }
+
+  buttons.forEach((btn, idx) => {
+    const n = idx + 1;
+    btn.disabled = counts[n] >= 9 || restrictedNums.has(n);
+    btn.className = '';
+    if (counts[n] >= 9) btn.classList.add('count-9');
+  });
+}
+
+// ======== PLACE NUMBER ========
+function placeNumber(n) {
+  if (selectedRow < 0 || selectedCol < 0) return;
+  const idx = selectedRow * 9 + selectedCol;
+  if (givenMask[idx]) return;
+
+  const prev = playerBoard[idx];
+  if (prev === n) return; // same number
+
+  history.push({ row: selectedRow, col: selectedCol, prev, isMistake: false });
+
+  playerBoard[idx] = n;
+
+  if (solved[idx] !== n) {
+    mistakes++;
+    updateMistakes();
+    playerBoard[idx] = n; // keep the wrong number shown
+    renderCell(selectedRow, selectedCol);
+    updateNumpad();
+    if (mistakes >= 3) {
+      setTimeout(() => {
+        alert('错误次数已达上限，游戏结束！请开始新游戏。');
+      }, 300);
+    }
+    return;
+  }
+
+  renderBoard();
+  updateNumpad();
+
+  // Check win
+  if (checkWin()) {
+    setTimeout(onWin, 400);
+  }
+}
+
+function eraseCell() {
+  if (selectedRow < 0 || selectedCol < 0) return;
+  const idx = selectedRow * 9 + selectedCol;
+  if (givenMask[idx]) return;
+  if (playerBoard[idx] === 0) return;
+
+  history.push({ row: selectedRow, col: selectedCol, prev: playerBoard[idx], isMistake: false });
+  playerBoard[idx] = 0;
+  renderCell(selectedRow, selectedCol);
+  updateNumpad();
+}
+
+function undoMove() {
+  if (history.length === 0) return;
+  const last = history.pop();
+  playerBoard[last.row * 9 + last.col] = last.prev;
+  if (last.isMistake) mistakes = Math.max(0, mistakes - 1);
+  selectedRow = last.row;
+  selectedCol = last.col;
+  renderBoard();
+  updateNumpad();
+  updateMistakes();
+}
+
+// ======== HINT ========
+function showHint() {
+  hintPanelEl.classList.remove('show');
+  hintPanelEl.innerHTML = '';
+
+  // Find a cell with only one candidate (naked single)
+  for (let i = 0; i < 81; i++) {
+    if (playerBoard[i] !== 0) continue;
+    const r = Math.floor(i / 9), c = i % 9;
+    const cands = getCandidates(playerBoard, r, c);
+    if (cands.length === 1) {
+      const n = cands[0];
+      const msg = buildNakedSingleMessage(r, c, n);
+      showHintResult(r, c, n, msg);
+      return;
+    }
+  }
+
+  // Find hidden single in row/col/box
+  for (let i = 0; i < 81; i++) {
+    if (playerBoard[i] !== 0) continue;
+    const r = Math.floor(i / 9), c = i % 9;
+    const cands = getCandidates(playerBoard, r, c);
+    for (const n of cands) {
+      let unique = false;
+      let scope = '';
+      // Row
+      let rowCount = 0;
+      for (let j = 0; j < 9; j++) {
+        if (j !== c && playerBoard[r * 9 + j] === 0 && getCandidates(playerBoard, r, j).includes(n))
+          rowCount++;
+      }
+      if (rowCount === 0) { unique = true; scope = `第${r+1}行`; }
+      // Col
+      if (!unique) {
+        let colCount = 0;
+        for (let j = 0; j < 9; j++) {
+          if (j !== r && playerBoard[j * 9 + c] === 0 && getCandidates(playerBoard, j, c).includes(n))
+            colCount++;
+        }
+        if (colCount === 0) { unique = true; scope = `第${c+1}列`; }
+      }
+      // Box
+      if (!unique) {
+        let boxCount = 0;
+        const br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
+        for (let i2 = br; i2 < br + 3; i2++)
+          for (let j2 = bc; j2 < bc + 3; j2++) {
+            if ((i2 !== r || j2 !== c) && playerBoard[i2 * 9 + j2] === 0 && getCandidates(playerBoard, i2, j2).includes(n))
+              boxCount++;
+          }
+        if (boxCount === 0) { unique = true; scope = `第${Math.floor(r/3)+1}行第${Math.floor(c/3)+1}列的宫`; }
+      }
+      if (unique) {
+        const msg = buildHiddenSingleMessage(r, c, n, scope);
+        showHintResult(r, c, n, msg);
+        return;
+      }
+    }
+  }
+
+  hintPanelEl.innerHTML = '<b>当前没有可推导的确定数字</b>，请尝试在其他位置填入数字后再使用提示。';
+  hintPanelEl.classList.add('show');
+}
+
+function buildNakedSingleMessage(r, c, n) {
+  const cands = getCandidates(playerBoard, r, c);
+  // Show what numbers are excluded
+  let excluded = [];
+  for (let x = 1; x <= 9; x++) {
+    if (!cands.includes(x)) excluded.push(x);
+  }
+  return `
+    <b>推导逻辑（唯余法 / Naked Single）</b><br><br>
+    单元格 <b>R${r+1}C${c+1}</b>（第${r+1}行第${c+1}列）<br>
+    该格所在的行、列、宫中已出现了数字：<b>${excluded.join(', ')}</b>，<br>
+    排除了这些数字后，只剩下唯一候选数：<b style="color:#e91e63;font-size:18px;">${n}</b><br>
+    <span style="color:#888;">✓ 因此该格只能填入 ${n}</span>
+  `;
+}
+
+function buildHiddenSingleMessage(r, c, n, scope) {
+  return `
+    <b>推导逻辑（隐式唯一 / Hidden Single）</b><br><br>
+    在 <b>${scope}</b> 中，数字 <b style="color:#e91e63;font-size:18px;">${n}</b> 只能出现在<br>
+    单元格 <b>R${r+1}C${c+1}</b>（第${r+1}行第${c+1}列），<br>
+    因为该区域内其他空格都无法填入 ${n}。<br>
+    <span style="color:#888;">✓ 因此该格只能填入 ${n}</span>
+  `;
+}
+
+function showHintResult(r, c, n, msg) {
+  hintPanelEl.innerHTML = msg;
+  hintPanelEl.classList.add('show');
+
+  // Fill the number
+  const idx = r * 9 + c;
+  history.push({ row: r, col: c, prev: playerBoard[idx], isMistake: false });
+  playerBoard[idx] = n;
+  selectedRow = r;
+  selectedCol = c;
+  renderBoard();
+  updateNumpad();
+
+  // Flash the hinted cell
+  setTimeout(() => {
+    const inner = boardEl.rows[r].cells[c].querySelector('.cell-inner');
+    if (inner) inner.classList.add('hinted');
+  }, 50);
+
+  if (checkWin()) setTimeout(onWin, 500);
+}
+
+// ======== WIN ========
+function checkWin() {
+  for (let i = 0; i < 81; i++) {
+    if (playerBoard[i] !== solved[i]) return false;
+  }
+  return true;
+}
+
+function onWin() {
+  stopTimer();
+  // Animate all numbers bouncing then flying up
+  const cells = document.querySelectorAll('.cell-inner');
+  cells.forEach((el, i) => {
+    el.style.animation = 'none';
+    el.offsetHeight;
+    el.style.animation = `dropBounce .4s ease-out forwards`;
+    el.style.animationDelay = `${i * 20}ms`;
+  });
+
+  setTimeout(() => {
+    cells.forEach((el, i) => {
+      el.style.animation = `flyUp .5s ease-in forwards`;
+      el.style.animationDelay = `${i * 25 + 100}ms`;
+    });
+  }, 600);
+
+  setTimeout(() => {
+    overlayMsgEl.textContent = `难度: ${difficulty}空 | 用时: ${formatTime(timeSec)} | 错误: ${mistakes}`;
+    overlayEl.classList.add('show');
+  }, 1400);
+}
+
+function closeOverlay() {
+  overlayEl.classList.remove('show');
+}
+
+// ======== TIMER ========
+function startTimer() {
+  if (timerInterval) return;
+  timerInterval = setInterval(() => {
+    timeSec++;
+    updateTimer();
+  }, 1000);
+}
+
+function stopTimer() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+}
+
+function updateTimer() {
+  timerEl.textContent = '⏱ ' + formatTime(timeSec);
+}
+
+function formatTime(s) {
+  const m = Math.floor(s / 60), sec = s % 60;
+  return String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+}
+
+function updateMistakes() {
+  mistakesEl.textContent = '错误: ' + mistakes + '/3';
+}
+
+// Start timer on first interaction
+document.addEventListener('click', function startT() {
+  if (!timerInterval && !overlayEl.classList.contains('show')) startTimer();
+}, { once: false });
+
+// ======== BOOT ========
+init();
+</script>
+</body>
+</html>
