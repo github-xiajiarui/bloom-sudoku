@@ -244,6 +244,68 @@ td.bottom { border-bottom: 2.5px solid #7b1fa2; }
 
 const APP_VERSION = 'dev';
 
+// ======== AUDIO ========
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function playTone(freq, duration, type, volume) {
+  initAudio();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(volume || 0.15, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration);
+}
+
+function sfxClick() { playTone(660, 0.07, 'sine', 0.12); }
+function sfxNote() { playTone(440, 0.05, 'sine', 0.06); }
+function sfxErase() { playTone(330, 0.06, 'triangle', 0.08); }
+function sfxUndo() { playTone(550, 0.05, 'sine', 0.06); }
+
+function sfxError() {
+  initAudio();
+  const t = audioCtx.currentTime;
+  [200, 160].forEach((freq, i) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.15, t + i * 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.1 + 0.15);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t + i * 0.1);
+    osc.stop(t + i * 0.1 + 0.15);
+  });
+}
+
+function sfxWin() {
+  initAudio();
+  const t = audioCtx.currentTime;
+  const notes = [523, 659, 784, 1047];
+  notes.forEach((freq, i) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    const d = t + i * 0.1;
+    gain.gain.setValueAtTime(0, d);
+    gain.gain.linearRampToValueAtTime(0.2, d + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.001, d + 0.35);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(d);
+    osc.stop(d + 0.35);
+  });
+}
+
 // 40/50: solved source grids, puzzles generated at runtime with logic solvability
 // 60: pre-made puzzle configurations (puzzle + solved), each with unique solution
 const STORED_PUZZLES = {
@@ -833,8 +895,8 @@ function renderCell(r, c) {
 }
 
 function selectCell(r, c) {
-  // Allow selecting given cells for highlighting, but they can't be edited
   selectedRow = r; selectedCol = c;
+  playTone(880, 0.03, 'sine', 0.05);
   renderBoard();
   updateNumpad();
 }
@@ -913,6 +975,7 @@ function placeNumber(n) {
     updateMistakes();
     renderCell(selectedRow, selectedCol);
     updateNumpad();
+    sfxError();
     if (mistakes >= 3) {
       setTimeout(() => {
         alert('错误次数已达上限，游戏结束！请开始新游戏。');
@@ -920,6 +983,8 @@ function placeNumber(n) {
     }
     return;
   }
+
+  sfxClick();
 
   renderBoard();
   updateNumpad();
@@ -938,6 +1003,7 @@ function placeNote(n) {
   const newNotes = notes[idx] ? new Set(notes[idx]) : null;
   history.push({ row: selectedRow, col: selectedCol, prev: 0, isMistake: false, prevNotes, newNotes });
 
+  sfxNote();
   renderCell(selectedRow, selectedCol);
 }
 
@@ -952,6 +1018,7 @@ function eraseCell() {
   history.push({ row: selectedRow, col: selectedCol, prev, isMistake: false, prevNotes });
   playerBoard[idx] = 0;
   notes[idx] = null;
+  sfxErase();
   renderCell(selectedRow, selectedCol);
   updateNumpad();
 }
@@ -966,6 +1033,7 @@ function undoMove() {
   }
   selectedRow = last.row;
   selectedCol = last.col;
+  sfxUndo();
   renderBoard();
   updateNumpad();
   updateMistakes();
@@ -1164,6 +1232,7 @@ function showHintResult(r, c, n, type, cands, scope, failDetails, blocked) {
   playerBoard[idx] = n;
   selectedRow = r;
   selectedCol = c;
+  sfxClick();
   renderBoard();
   updateNumpad();
 
@@ -1185,6 +1254,7 @@ function checkWin() {
 
 function onWin() {
   stopTimer();
+  sfxWin();
   const cells = document.querySelectorAll('.cell-inner');
   cells.forEach((el, i) => {
     el.style.animation = 'none';
