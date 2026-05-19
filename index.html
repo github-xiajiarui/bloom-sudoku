@@ -483,6 +483,48 @@ function isLogicallySolvable(puzzle) {
   return board.indexOf(0) === -1;
 }
 
+// Run logical deduction chain and find contradiction point
+// Returns {row, col} of the first cell that ends up with 0 candidates, or null
+function findContradiction(board) {
+  const b = [...board];
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let i = 0; i < 81; i++) {
+      if (b[i] !== 0) continue;
+      const r = Math.floor(i / 9), c = i % 9;
+      const cands = getCandidates(b, r, c);
+      if (cands.length === 0) return { row: r, col: c };
+      if (cands.length === 1) { b[i] = cands[0]; changed = true; continue; }
+      for (const n of cands) {
+        let rowCount = 0, rowIdx = -1;
+        for (let j = 0; j < 9; j++) {
+          if (b[r * 9 + j] === 0 && getCandidates(b, r, j).includes(n)) { rowCount++; rowIdx = r * 9 + j; }
+        }
+        if (rowCount === 1) { b[rowIdx] = n; changed = true; break; }
+        let colCount = 0, colIdx = -1;
+        for (let j = 0; j < 9; j++) {
+          if (b[j * 9 + c] === 0 && getCandidates(b, j, c).includes(n)) { colCount++; colIdx = j * 9 + c; }
+        }
+        if (colCount === 1) { b[colIdx] = n; changed = true; break; }
+        let boxCount = 0, boxIdx = -1;
+        const br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
+        for (let i2 = br; i2 < br + 3; i2++)
+          for (let j2 = bc; j2 < bc + 3; j2++) {
+            if (b[i2 * 9 + j2] === 0 && getCandidates(b, i2, j2).includes(n)) { boxCount++; boxIdx = i2 * 9 + j2; }
+          }
+        if (boxCount === 1) { b[boxIdx] = n; changed = true; break; }
+      }
+      if (changed) break;
+    }
+  }
+  for (let i = 0; i < 81; i++) {
+    if (b[i] !== 0) continue;
+    if (getCandidates(b, Math.floor(i / 9), i % 9).length === 0) return { row: Math.floor(i / 9), col: i % 9 };
+  }
+  return null;
+}
+
 // ======== GAME STATE ========
 let difficulty = 50;
 let solved = null;
@@ -967,20 +1009,28 @@ function showHint() {
     }
   }
 
-  // Strategy 3: Brute force — try each candidate for each empty cell
+  // Strategy 3: Brute force — try each candidate, trace contradiction for failures
   for (let i = 0; i < 81; i++) {
     if (playerBoard[i] !== 0) continue;
     const r = Math.floor(i / 9), c = i % 9;
     const cands = getCandidates(playerBoard, r, c);
-    if (cands.length === 0) continue;
+    if (cands.length <= 1) continue;
     const validCands = [];
+    const failDetails = []; // {n, row, col} — which candidate caused contradiction where
     for (const n of cands) {
       const testBoard = [...playerBoard];
       testBoard[i] = n;
-      if (solve(testBoard)) validCands.push(n);
+      if (solve(testBoard)) {
+        validCands.push(n);
+      } else {
+        const contra = findContradiction(testBoard);
+        if (contra) {
+          failDetails.push({ n, row: contra.row, col: contra.col });
+        }
+      }
     }
     if (validCands.length === 1) {
-      showHintResult(r, c, validCands[0], 'bruteforce', cands);
+      showHintResult(r, c, validCands[0], 'bruteforce', cands, null, failDetails);
       return;
     }
   }
@@ -1014,22 +1064,29 @@ function showHint() {
   hintAreaEl.classList.add('active');
 }
 
-function showHintResult(r, c, n, type, cands, scope) {
+function showHintResult(r, c, n, type, cands, scope, failDetails) {
   let line1 = '', line2 = '';
   if (type === 'naked') {
     const excluded = [];
     for (let x = 1; x <= 9; x++) { if (!cands.includes(x)) excluded.push(x); }
     line1 = `R${r+1}C${c+1}（第${r+1}行第${c+1}列）→ 填入 <b style="color:#e91e63;font-size:17px;">${n}</b>　<span style="font-size:11px;color:#888;">唯余法</span>`;
-    line2 = `该格行/列/宫中已有 <b>${excluded.join(', ')}</b>，仅剩候选数 <b>${n}</b>`;
+    line2 = `该格同行/列/宫中已有 <b>${excluded.join(', ')}</b>，仅剩候选数 <b>${n}</b>`;
   } else if (type === 'hidden') {
     line1 = `R${r+1}C${c+1}（第${r+1}行第${c+1}列）→ 填入 <b style="color:#e91e63;font-size:17px;">${n}</b>　<span style="font-size:11px;color:#888;">隐式唯一</span>`;
     line2 = `在 <b>${scope}</b> 中，数字 <b>${n}</b> 只能出现在 R${r+1}C${c+1}，该区域内其他空格均无法填入 ${n}`;
   } else if (type === 'bruteforce') {
     line1 = `R${r+1}C${c+1}（第${r+1}行第${c+1}列）→ 填入 <b style="color:#e91e63;font-size:17px;">${n}</b>　<span style="font-size:11px;color:#888;">回溯推导</span>`;
-    line2 = `尝试该格其他候选数（${cands.filter(x=>x!==n).join(', ')}）均无法完成棋盘，仅 <b>${n}</b> 可得到合法终局`;
+    if (failDetails && failDetails.length > 0) {
+      const parts = failDetails.map(f =>
+        `填入 <b>${f.n}</b> 经推导 → R${f.row+1}C${f.col+1} 无合法候选数（矛盾）`
+      );
+      line2 = parts.join('；<br>') + `。<br>故仅 <b>${n}</b> 能完成棋盘。`;
+    } else {
+      line2 = `尝试该格其他候选数（${cands.filter(x=>x!==n).join(', ')}）均无法完成棋盘，仅 <b>${n}</b> 可得合法终局`;
+    }
   } else if (type === 'bruteforce-multi') {
     line1 = `R${r+1}C${c+1}（第${r+1}行第${c+1}列）→ 建议 <b style="color:#e91e63;font-size:17px;">${n}</b>　<span style="font-size:11px;color:#888;">回溯推导</span>`;
-    line2 = `该格候选数为 {${cands.join(', ')}}，均能完成棋盘。建议先尝试 <b>${n}</b>，或结合其他约束进一步分析`;
+    line2 = `该格候选数为 {${cands.join(', ')}}，均能完成棋盘。建议先尝试 <b>${n}</b>，或结合其他行/列/宫约束进一步分析`;
   }
 
   hintPanelEl.innerHTML = `<div class="hint-line1">${line1}</div><div class="hint-line2">${line2}</div>`;
