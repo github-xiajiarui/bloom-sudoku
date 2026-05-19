@@ -1108,10 +1108,29 @@ function showHint() {
 function showHintResult(r, c, n, type, cands, scope, failDetails, blocked) {
   let line1 = '', line2 = '';
   if (type === 'naked') {
-    const excluded = [];
-    for (let x = 1; x <= 9; x++) { if (!cands.includes(x)) excluded.push(x); }
+    const rowNums = [], colNums = [], boxNums = [];
+    for (let x = 1; x <= 9; x++) {
+      if (cands.includes(x)) continue;
+      let inRow = false, inCol = false;
+      for (let j = 0; j < 9; j++) {
+        if (j !== c && playerBoard[r * 9 + j] === x) inRow = true;
+        if (j !== r && playerBoard[j * 9 + c] === x) inCol = true;
+      }
+      const br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
+      let inBox = false;
+      for (let i2 = br; i2 < br + 3; i2++)
+        for (let j2 = bc; j2 < bc + 3; j2++)
+          if ((i2 !== r || j2 !== c) && playerBoard[i2 * 9 + j2] === x) inBox = true;
+      if (inRow) rowNums.push(x);
+      else if (inCol) colNums.push(x);
+      else if (inBox) boxNums.push(x);
+    }
+    const parts = [];
+    if (rowNums.length) parts.push(`同行 <b>${rowNums.join(',')}</b>`);
+    if (colNums.length) parts.push(`同列 <b>${colNums.join(',')}</b>`);
+    if (boxNums.length) parts.push(`同宫 <b>${boxNums.join(',')}</b>`);
     line1 = `R${r+1}C${c+1}（第${r+1}行第${c+1}列）→ 填入 <b style="color:#e91e63;font-size:17px;">${n}</b>　<span style="font-size:11px;color:#888;">唯余法</span>`;
-    line2 = `该格同行/列/宫中已有 <b>${excluded.join(', ')}</b>，仅剩候选数 <b>${n}</b>`;
+    line2 = parts.join('；') + ` → 仅剩 <b>${n}</b> 可填`;
   } else if (type === 'hidden') {
     line1 = `R${r+1}C${c+1}（第${r+1}行第${c+1}列）→ 填入 <b style="color:#e91e63;font-size:17px;">${n}</b>　<span style="font-size:11px;color:#888;">隐式唯一</span>`;
     if (blocked && blocked.length > 0) {
