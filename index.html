@@ -15,7 +15,7 @@ body {
   user-select: none; -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
-.container { max-width: 420px; width: 100%; padding: 0 12px 12px 12px; }
+.container { max-width: 420px; width: 100%; padding: 0 12px 52px 12px; }
 
 /* Header */
 .header { position: relative; text-align: center; margin-bottom: 4px; }
@@ -186,11 +186,14 @@ td.bottom { border-bottom: 2.5px solid #7b1fa2; }
 
 /* Music bar */
 .music-bar {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  max-width: 420px; width: calc(100% - 24px);
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 6px 10px; margin-top: 6px;
-  background: rgba(255,255,255,.7); border-radius: 12px;
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  padding: 6px 10px;
+  background: rgba(255,255,255,.85); border-radius: 14px 14px 0 0;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   font-size: 11px; color: #6a1b9a;
+  z-index: 100; box-shadow: 0 -2px 12px rgba(156,39,176,.06);
 }
 .music-bar .track-info { flex: 1; min-width: 0; text-align: center; line-height: 1.3; }
 .music-bar .track-name { font-weight: 600; font-size: 12px; }
@@ -240,16 +243,17 @@ td.bottom { border-bottom: 2.5px solid #7b1fa2; }
     <div class="hint-panel" id="hintPanel"></div>
   </div>
 
-  <div class="music-bar" id="musicBar">
-    <button onclick="prevTrack()" title="上一首">⏮</button>
-    <button id="btnPlay" onclick="togglePlay()" title="播放/暂停">▶</button>
-    <button onclick="nextTrack()" title="下一首">⏭</button>
-    <div class="track-info">
-      <div class="track-name" id="trackName"></div>
-      <div class="track-composer" id="trackComposer"></div>
-    </div>
-    <button id="btnLoop" onclick="toggleLoop()" title="单曲循环">🔁</button>
+</div>
+
+<div class="music-bar" id="musicBar">
+  <button onclick="prevTrack()" title="上一首">⏮</button>
+  <button id="btnPlay" onclick="togglePlay()" title="播放/暂停">▶</button>
+  <button onclick="nextTrack()" title="下一首">⏭</button>
+  <div class="track-info">
+    <div class="track-name" id="trackName"></div>
+    <div class="track-composer" id="trackComposer"></div>
   </div>
+  <button id="btnLoop" onclick="toggleLoop()" title="单曲循环">🔁</button>
 </div>
 
 <div class="overlay" id="winOverlay">
@@ -343,6 +347,7 @@ let bgmOn = false;
 let bgmAudio = null;
 let pieceIdx = 0;
 let loopSingle = false;
+const preloadPool = {};
 
 const tracks = [
   { name:'梦幻曲', composer:'舒曼', url:'https://upload.wikimedia.org/wikipedia/commons/0/06/Robert_Schumann_-_scenes_from_childhood%2C_op._15_-_vii._dreaming.ogg' },
@@ -359,21 +364,48 @@ const tracks = [
 
 function currentTrack() { return tracks[pieceIdx]; }
 
+function onTrackEnded() {
+  if (!bgmOn) return;
+  if (loopSingle) { bgmAudio.currentTime = 0; bgmAudio.play().catch(() => {}); }
+  else { pieceIdx = (pieceIdx + 1) % tracks.length; updateMusicBar(); playCurrent(); }
+}
+
 function ensureAudio() {
   if (bgmAudio) return;
   bgmAudio = new Audio();
   bgmAudio.volume = 0.5;
-  bgmAudio.addEventListener('ended', () => {
-    if (!bgmOn) return;
-    if (loopSingle) { bgmAudio.currentTime = 0; bgmAudio.play().catch(() => {}); }
-    else { pieceIdx = (pieceIdx + 1) % tracks.length; updateMusicBar(); playCurrent(); }
-  });
+  bgmAudio.addEventListener('ended', onTrackEnded);
+}
+
+function preload(idx) {
+  if (preloadPool[idx]) return;
+  const a = new Audio();
+  a.src = tracks[idx].url;
+  a.volume = 0.5;
+  a.preload = 'auto';
+  preloadPool[idx] = a;
+}
+
+function preloadAdjacent() {
+  preload((pieceIdx + 1) % tracks.length);
+  preload((pieceIdx - 1 + tracks.length) % tracks.length);
 }
 
 function playCurrent() {
   ensureAudio();
-  bgmAudio.src = currentTrack().url;
+  const idx = pieceIdx;
+  if (preloadPool[idx]) {
+    bgmAudio.pause();
+    bgmAudio.removeEventListener('ended', onTrackEnded);
+    bgmAudio.src = '';
+    bgmAudio = preloadPool[idx];
+    delete preloadPool[idx];
+    bgmAudio.addEventListener('ended', onTrackEnded);
+  } else {
+    bgmAudio.src = tracks[idx].url;
+  }
   bgmAudio.play().catch(() => {});
+  preloadAdjacent();
   updateMusicBar();
 }
 
