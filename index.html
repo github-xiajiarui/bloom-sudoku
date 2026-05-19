@@ -151,6 +151,8 @@ td.bottom { border-bottom: 2.5px solid #7b1fa2; }
 .btn-hint { background: linear-gradient(135deg, #64b5f6, #42a5f5); }
 .btn-undo { background: linear-gradient(135deg, #ffb74d, #ff9800); }
 .btn-new { background: linear-gradient(135deg, #ce93d8, #ab47bc); }
+.btn-bgm { background: linear-gradient(135deg, #90caf9, #64b5f6); }
+.btn-bgm.active { background: linear-gradient(135deg, #66bb6a, #43a047); box-shadow: 0 0 0 3px rgba(76,175,80,.25); }
 
 /* Hint panel - reserved space with visibility toggle to prevent layout shift */
 .hint-area { min-height: 0; transition: min-height .2s; }
@@ -212,6 +214,7 @@ td.bottom { border-bottom: 2.5px solid #7b1fa2; }
     <button class="act-btn btn-notes" id="btnNotes" onclick="toggleNotes()">📝 笔记</button>
     <button class="act-btn btn-hint" onclick="showHint()">💡 提示</button>
     <button class="act-btn btn-undo" onclick="undoMove()">↩ 撤销</button>
+    <button class="act-btn btn-bgm" id="btnBgm" onclick="toggleBgm()">🔇 音乐</button>
     <button class="act-btn btn-new" onclick="confirmNewGame()">🔄 重开</button>
   </div>
 
@@ -304,6 +307,110 @@ function sfxWin() {
     osc.start(d);
     osc.stop(d + 0.35);
   });
+}
+
+// ======== BACKGROUND MUSIC ========
+let bgmOn = false;
+let bgmTimer = null;
+let bgmGainNode = null;
+const pentatonic = [262, 294, 330, 392, 440, 523, 587, 659, 784, 880];
+const melody = [
+  // Slow meditative pentatonic melody, ~48 BPM
+  { n: 4, d: 1.4 },  // A4
+  { n: 3, d: 0.7 },  // G4
+  { n: 2, d: 0.7 },  // E4
+  { n: 4, d: 1.4 },  // A4
+  { n: 5, d: 0.7 },  // C5
+  { n: 4, d: 0.7 },  // A4
+  { n: 3, d: 2.1 },  // G4
+  { n: 0, d: 1.4 },  // C4 (rest-like)
+  { n: 2, d: 1.4 },  // E4
+  { n: 3, d: 0.7 },  // G4
+  { n: 5, d: 0.7 },  // C5
+  { n: 7, d: 1.4 },  // E5
+  { n: 6, d: 0.7 },  // D5
+  { n: 5, d: 0.7 },  // C5
+  { n: 4, d: 2.1 },  // A4
+  { n: 3, d: 1.4 },  // G4
+  { n: 4, d: 0.7 },  // A4
+  { n: 3, d: 0.7 },  // G4
+  { n: 2, d: 1.4 },  // E4
+  { n: 1, d: 0.7 },  // D4
+  { n: 0, d: 0.7 },  // C4
+  { n: 1, d: 2.8 },  // D4 (held)
+];
+let bgmIdx = 0;
+
+function playBgmNote() {
+  if (!bgmOn || !audioCtx) return;
+  const note = melody[bgmIdx];
+  const freq = pentatonic[note.n];
+  const dur = note.d;
+
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = freq;
+
+  // Gentle attack and long decay for relaxing feel
+  const t = audioCtx.currentTime;
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(0.06, t + 0.08);
+  g.gain.setValueAtTime(0.06, t + dur * 0.7);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+
+  // Add a quiet harmonic overtone for warmth
+  const osc2 = audioCtx.createOscillator();
+  const g2 = audioCtx.createGain();
+  osc2.type = 'sine';
+  osc2.frequency.value = freq * 2;
+  g2.gain.setValueAtTime(0, t);
+  g2.gain.linearRampToValueAtTime(0.012, t + 0.06);
+  g2.gain.exponentialRampToValueAtTime(0.001, t + dur * 0.6);
+
+  osc.connect(g);
+  osc2.connect(g2);
+  g.connect(bgmGainNode);
+  g2.connect(bgmGainNode);
+
+  osc.start(t);
+  osc.stop(t + dur);
+  osc2.start(t);
+  osc2.stop(t + dur);
+
+  bgmIdx = (bgmIdx + 1) % melody.length;
+  bgmTimer = setTimeout(playBgmNote, dur * 1000);
+}
+
+function startBgm() {
+  if (bgmOn) return;
+  initAudio();
+  if (!bgmGainNode) {
+    bgmGainNode = audioCtx.createGain();
+    bgmGainNode.gain.value = 0.7;
+    bgmGainNode.connect(audioCtx.destination);
+  }
+  bgmOn = true;
+  bgmIdx = 0;
+  playBgmNote();
+  updateBgmBtn();
+}
+
+function stopBgm() {
+  bgmOn = false;
+  if (bgmTimer) { clearTimeout(bgmTimer); bgmTimer = null; }
+  updateBgmBtn();
+}
+
+function toggleBgm() {
+  if (bgmOn) stopBgm();
+  else startBgm();
+}
+
+function updateBgmBtn() {
+  const btn = document.getElementById('btnBgm');
+  if (btn) btn.textContent = bgmOn ? '🎵 音乐' : '🔇 音乐';
+  if (btn) btn.classList.toggle('active', bgmOn);
 }
 
 // 40/50: solved source grids, puzzles generated at runtime with logic solvability
@@ -1335,8 +1442,13 @@ function updateMistakes() {
   mistakesEl.textContent = '错误: ' + mistakes + '/3';
 }
 
-// Start timer on first interaction
+// Start timer + bgm on first interaction
+let firstInteractionDone = false;
 document.addEventListener('click', function startT() {
+  if (!firstInteractionDone) {
+    firstInteractionDone = true;
+    startBgm();
+  }
   if (!timerInterval && !winOverlayEl.classList.contains('show') && !confirmOverlayEl.classList.contains('show')) startTimer();
 }, { once: false });
 
