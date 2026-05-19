@@ -309,6 +309,21 @@ function getCandidates(board, r, c) {
   return cands;
 }
 
+// Return a short description of why number n cannot be placed at (r,c)
+function whyBlocked(board, r, c, n) {
+  for (let j = 0; j < 9; j++) {
+    if (j !== c && board[r * 9 + j] === n) return `同行R${r+1}C${j+1}已含${n}`;
+  }
+  for (let i = 0; i < 9; i++) {
+    if (i !== r && board[i * 9 + c] === n) return `同列R${i+1}C${c+1}已含${n}`;
+  }
+  const br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
+  for (let i = br; i < br + 3; i++)
+    for (let j = bc; j < bc + 3; j++)
+      if ((i !== r || j !== c) && board[i * 9 + j] === n) return `同宫R${i+1}C${j+1}已含${n}`;
+  return '';
+}
+
 function hasConflict(board, idx) {
   const val = board[idx];
   if (val === 0) return false;
@@ -979,18 +994,34 @@ function showHint() {
     const r = Math.floor(i / 9), c = i % 9;
     const cands = getCandidates(playerBoard, r, c);
     for (const n of cands) {
-      let scope = '', idx = -1;
+      let scope = '', idx = -1, blocked = [];
       let rowCount = 0, rowIdx = -1;
       for (let j = 0; j < 9; j++) {
         if (playerBoard[r * 9 + j] === 0 && getCandidates(playerBoard, r, j).includes(n)) { rowCount++; rowIdx = r * 9 + j; }
       }
-      if (rowCount === 1) { scope = `第${r+1}行`; idx = rowIdx; }
+      if (rowCount === 1) {
+        scope = `第${r+1}行`;
+        idx = rowIdx;
+        for (let j = 0; j < 9; j++) {
+          if (j === idx % 9 || playerBoard[r * 9 + j] !== 0) continue;
+          const reason = whyBlocked(playerBoard, r, j, n);
+          if (reason) blocked.push({ r, c: j, reason });
+        }
+      }
       if (!scope) {
         let colCount = 0, colIdx = -1;
         for (let j = 0; j < 9; j++) {
           if (playerBoard[j * 9 + c] === 0 && getCandidates(playerBoard, j, c).includes(n)) { colCount++; colIdx = j * 9 + c; }
         }
-        if (colCount === 1) { scope = `第${c+1}列`; idx = colIdx; }
+        if (colCount === 1) {
+          scope = `第${c+1}列`;
+          idx = colIdx;
+          for (let i2 = 0; i2 < 9; i2++) {
+            if (i2 === Math.floor(idx / 9) || playerBoard[i2 * 9 + c] !== 0) continue;
+            const reason = whyBlocked(playerBoard, i2, c, n);
+            if (reason) blocked.push({ r: i2, c, reason });
+          }
+        }
       }
       if (!scope) {
         let boxCount = 0, boxIdx = -1;
@@ -999,11 +1030,21 @@ function showHint() {
           for (let j2 = bc; j2 < bc + 3; j2++) {
             if (playerBoard[i2 * 9 + j2] === 0 && getCandidates(playerBoard, i2, j2).includes(n)) { boxCount++; boxIdx = i2 * 9 + j2; }
           }
-        if (boxCount === 1) { scope = `第${Math.floor(r/3)+1}行第${Math.floor(c/3)+1}列的宫`; idx = boxIdx; }
+        if (boxCount === 1) {
+          scope = `第${Math.floor(r/3)+1}行第${Math.floor(c/3)+1}列的宫`;
+          idx = boxIdx;
+          const targetR = Math.floor(idx / 9), targetC = idx % 9;
+          for (let i2 = br; i2 < br + 3; i2++)
+            for (let j2 = bc; j2 < bc + 3; j2++) {
+              if ((i2 === targetR && j2 === targetC) || playerBoard[i2 * 9 + j2] !== 0) continue;
+              const reason = whyBlocked(playerBoard, i2, j2, n);
+              if (reason) blocked.push({ r: i2, c: j2, reason });
+            }
+        }
       }
       if (scope) {
         const hr = Math.floor(idx / 9), hc = idx % 9;
-        showHintResult(hr, hc, n, 'hidden', getCandidates(playerBoard, hr, hc), scope);
+        showHintResult(hr, hc, n, 'hidden', getCandidates(playerBoard, hr, hc), scope, blocked);
         return;
       }
     }
@@ -1064,7 +1105,7 @@ function showHint() {
   hintAreaEl.classList.add('active');
 }
 
-function showHintResult(r, c, n, type, cands, scope, failDetails) {
+function showHintResult(r, c, n, type, cands, scope, failDetails, blocked) {
   let line1 = '', line2 = '';
   if (type === 'naked') {
     const excluded = [];
@@ -1073,7 +1114,12 @@ function showHintResult(r, c, n, type, cands, scope, failDetails) {
     line2 = `该格同行/列/宫中已有 <b>${excluded.join(', ')}</b>，仅剩候选数 <b>${n}</b>`;
   } else if (type === 'hidden') {
     line1 = `R${r+1}C${c+1}（第${r+1}行第${c+1}列）→ 填入 <b style="color:#e91e63;font-size:17px;">${n}</b>　<span style="font-size:11px;color:#888;">隐式唯一</span>`;
-    line2 = `在 <b>${scope}</b> 中，数字 <b>${n}</b> 只能出现在 R${r+1}C${c+1}，该区域内其他空格均无法填入 ${n}`;
+    if (blocked && blocked.length > 0) {
+      const parts = blocked.map(b => `R${b.r+1}C${b.c+1}（${b.reason}）`);
+      line2 = `在 <b>${scope}</b> 的其余空格中，${parts.join('、')}，仅 R${r+1}C${c+1} 可填入 <b>${n}</b>`;
+    } else {
+      line2 = `在 <b>${scope}</b> 中，数字 <b>${n}</b> 只能出现在 R${r+1}C${c+1}，该区域内其他空格均无法填入 ${n}`;
+    }
   } else if (type === 'bruteforce') {
     line1 = `R${r+1}C${c+1}（第${r+1}行第${c+1}列）→ 填入 <b style="color:#e91e63;font-size:17px;">${n}</b>　<span style="font-size:11px;color:#888;">回溯推导</span>`;
     if (failDetails && failDetails.length > 0) {
