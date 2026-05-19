@@ -315,133 +315,159 @@ function sfxWin() {
   });
 }
 
-// ======== BACKGROUND MUSIC (yoga meditation) ========
+// ======== BACKGROUND MUSIC (classical collection) ========
 let bgmOn = false;
 let bgmTimer = null;
 let bgmGainNode = null;
 let droneOsc = null;
 let droneGain = null;
+let pieceIdx = 0;
+let noteIdx = 0;
 
-// Low pentatonic: C3 D3 E3 G3 A3 C4 D4 E4 G4 A4
-const penta = [131, 147, 165, 196, 220, 262, 294, 330, 392, 440];
-
-// Very slow, spacious yoga melody — each note ~3-5 seconds
-const melody = [
-  { n: 5, d: 3.6 },  // C4
-  { n: 7, d: 2.4 },  // E4
-  { n: 8, d: 4.8 },  // G4  (held)
-  null,                // rest
-  { n: 7, d: 3.0 },  // E4
-  { n: 5, d: 2.4 },  // C4
-  { n: 3, d: 4.2 },  // G3  (held)
-  null,
-  { n: 4, d: 3.0 },  // A3
-  { n: 5, d: 2.4 },  // C4
-  { n: 7, d: 3.6 },  // E4
-  { n: 9, d: 5.4 },  // A4  (held, peak)
-  null,
-  { n: 8, d: 3.0 },  // G4
-  { n: 7, d: 2.4 },  // E4
-  { n: 5, d: 3.0 },  // C4
-  { n: 4, d: 5.4 },  // A3  (held)
-  null,
-  { n: 3, d: 3.0 },  // G3
-  { n: 4, d: 2.4 },  // A3
-  { n: 5, d: 4.8 },  // C4  (held)
-  null,
-  { n: 5, d: 3.0 },  // C4
-  { n: 3, d: 3.0 },  // G3
-  { n: 2, d: 3.0 },  // E3
-  { n: 0, d: 6.0 },  // C3  (grounding, held long)
+// Semitone-based: freq = 262 * 2^(st/12). Negative = below C4.
+// [semitone_from_C4, duration_in_beats], beat ≈ 1.6s (slow meditative)
+const pieces = [
+  { name:'勃拉姆斯·摇篮曲', notes:[
+    [0,2],[4,2],[7,2],[4,2],[0,2],[4,2],[7,2],[4,2],
+    [12,2],[7,2],[4,2],[0,2],[-5,2],[-1,2],[2,2],[5,2],[4,3],[0,1],
+    [0,2],[4,2],[7,2],[4,2],[0,2],[4,2],[7,2],[4,2],
+    [12,2],[7,2],[4,2],[0,2],[-5,2],[-1,2],[2,2],[5,2],[4,4]
+  ]},
+  { name:'贝多芬·致爱丽丝', notes:[
+    [4,2],[3,2],[4,2],[3,2],[4,2],[-1,2],[2,2],[0,2],[-3,4],
+    [-5,2],[-3,2],[0,2],[2,2],[4,3],[2,1],
+    [0,2],[-3,2],[0,2],[4,2],[7,2],[12,2],[4,2],[3,2],[4,4]
+  ]},
+  { name:'莫扎特·G小调第四十交响曲', notes:[
+    [7,2],[2,2],[7,1],[2,1],[7,2],[11,2],[14,2],[12,2],[9,2],[7,2],[2,2],[5,4],
+    [9,2],[5,2],[9,1],[5,1],[9,2],[12,2],[16,2],[14,2],[11,2],[9,2],[5,2],[7,4],
+    [7,2],[2,2],[7,1],[2,1],[7,2],[11,2],[14,2],[12,2],[9,2],[7,2],[2,2],[5,4]
+  ]},
+  { name:'贝多芬·月光奏鸣曲', notes:[
+    [-4,3],[1,3],[4,3],[-4,3],[1,3],[4,3],[-4,3],[1,3],[4,3],
+    [-1,3],[5,3],[8,3],[-1,3],[5,3],[8,3],[-1,3],[5,3],[8,3],
+    [0,3],[4,3],[7,3],[0,3],[4,3],[7,3],[0,3],[4,3],[7,3],
+    [-4,3],[1,3],[4,3],[-4,3],[1,3],[4,3],[-4,3],[1,3],[4,6]
+  ]},
+  { name:'舒伯特·小夜曲', notes:[
+    [2,3],[5,2],[9,3],[7,2],[5,2],[2,2],[4,3],[0,4],
+    [2,3],[5,2],[9,3],[7,2],[5,2],[2,2],[0,4],[-3,2],[-5,6],
+    [4,3],[7,2],[11,3],[9,2],[7,2],[4,2],[5,4],[2,2],[0,4]
+  ]},
+  { name:'肖邦·夜曲 Op.9 No.2', notes:[
+    [-2,3],[3,2],[7,2],[5,1],[3,2],[2,2],[3,2],[5,2],[7,2],[5,1],[3,4],
+    [-2,3],[3,2],[7,2],[5,1],[3,2],[2,2],[3,2],[5,2],[7,2],[12,2],[9,4],
+    [7,2],[5,1],[3,2],[2,2],[0,2],[2,2],[3,2],[5,2],[7,1],[5,2],[3,4]
+  ]},
+  { name:'莫扎特·小星星变奏曲', notes:[
+    [0,2],[0,2],[7,2],[7,2],[9,2],[9,2],[7,4],
+    [5,2],[5,2],[4,2],[4,2],[2,2],[2,2],[0,4],
+    [7,2],[7,2],[5,2],[5,2],[4,2],[4,2],[2,4],
+    [7,2],[7,2],[5,2],[5,2],[4,2],[4,2],[2,4],
+    [0,2],[0,2],[7,2],[7,2],[9,2],[9,2],[7,4],
+    [5,2],[5,2],[4,2],[4,2],[2,2],[2,2],[0,6]
+  ]},
+  { name:'德彪西·月光', notes:[
+    [5,3],[7,2],[9,3],[10,2],[9,2],[7,2],[5,3],[2,3],
+    [5,3],[7,2],[9,3],[10,2],[14,2],[12,2],[10,3],[7,3],
+    [9,3],[10,2],[12,3],[14,2],[12,2],[10,2],[9,3],[5,3],
+    [7,3],[5,2],[2,3],[0,6]
+  ]},
+  { name:'贝多芬·田园交响曲', notes:[
+    [5,2],[5,2],[7,2],[9,2],[9,2],[7,2],[5,2],[4,2],
+    [2,2],[2,2],[4,2],[5,2],[5,2],[4,2],[4,4],
+    [9,2],[9,2],[7,2],[5,2],[5,2],[7,2],[9,2],[12,2],
+    [9,2],[7,2],[5,2],[4,2],[2,2],[4,2],[5,2],[7,2],[5,4]
+  ]},
+  { name:'德彪西·亚麻色头发的少女', notes:[
+    [1,3],[3,2],[5,3],[8,2],[6,2],[5,2],[3,3],[1,3],
+    [1,3],[3,2],[5,3],[8,2],[13,2],[10,2],[8,3],[6,3],
+    [6,2],[8,2],[10,3],[8,2],[6,2],[5,2],[8,3],[5,3],
+    [3,3],[1,2],[0,3],[-2,6]
+  ]},
 ];
-let bgmIdx = 0;
+
+function noteFreq(st) { return 262 * Math.pow(2, st / 12); }
 
 function playBgmNote() {
   if (!bgmOn || !audioCtx) return;
-  const note = melody[bgmIdx];
-  bgmIdx = (bgmIdx + 1) % melody.length;
-
-  if (!note) {
-    // Rest — silence for one beat
-    bgmTimer = setTimeout(playBgmNote, 2200);
+  const piece = pieces[pieceIdx];
+  if (noteIdx >= piece.notes.length) {
+    noteIdx = 0;
+    pieceIdx = (pieceIdx + 1) % pieces.length;
+    bgmTimer = setTimeout(playBgmNote, 2400);
     return;
   }
-
-  const freq = penta[note.n];
-  const dur = note.d;
+  const [st, beats] = piece.notes[noteIdx];
+  noteIdx++;
+  const freq = noteFreq(st);
+  const dur = beats * 1.6;
   const t = audioCtx.currentTime;
 
-  // Main voice: soft triangle wave with slow attack & long decay
+  // Main voice
   const osc = audioCtx.createOscillator();
   const g = audioCtx.createGain();
   osc.type = 'sine';
   osc.frequency.value = freq;
 
-  // Subtle vibrato via frequency modulation
+  // Subtle vibrato
   const lfo = audioCtx.createOscillator();
   const lfoGain = audioCtx.createGain();
   lfo.type = 'sine';
-  lfo.frequency.value = 2.8;  // slow shimmer
+  lfo.frequency.value = 2.8;
   lfoGain.gain.value = 2.5;
   lfo.connect(lfoGain);
   lfoGain.connect(osc.frequency);
 
   g.gain.setValueAtTime(0, t);
-  g.gain.linearRampToValueAtTime(0.05, t + 0.5);  // very slow fade in
-  g.gain.setValueAtTime(0.05, t + dur * 0.6);
-  g.gain.exponentialRampToValueAtTime(0.001, t + dur + 0.8);  // long tail
+  g.gain.linearRampToValueAtTime(0.045, t + 0.5);
+  g.gain.setValueAtTime(0.045, t + dur * 0.55);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur + 0.8);
 
-  // Upper harmonic octave, even quieter
+  // Octave overtone
   const osc2 = audioCtx.createOscillator();
   const g2 = audioCtx.createGain();
   osc2.type = 'sine';
   osc2.frequency.value = freq * 2;
   g2.gain.setValueAtTime(0, t);
-  g2.gain.linearRampToValueAtTime(0.012, t + 0.6);
+  g2.gain.linearRampToValueAtTime(0.01, t + 0.5);
   g2.gain.exponentialRampToValueAtTime(0.001, t + dur + 0.5);
 
-  // Fifth harmonic for warmth
+  // Fifth overtone
   const osc5 = audioCtx.createOscillator();
   const g5 = audioCtx.createGain();
   osc5.type = 'sine';
-  osc5.frequency.value = freq * 1.5;  // perfect fifth
+  osc5.frequency.value = freq * 1.5;
   g5.gain.setValueAtTime(0, t);
-  g5.gain.linearRampToValueAtTime(0.015, t + 0.45);
+  g5.gain.linearRampToValueAtTime(0.012, t + 0.4);
   g5.gain.exponentialRampToValueAtTime(0.001, t + dur + 0.5);
 
-  osc.connect(g);
-  osc2.connect(g2);
-  osc5.connect(g5);
-  g.connect(bgmGainNode);
-  g2.connect(bgmGainNode);
-  g5.connect(bgmGainNode);
+  osc.connect(g); osc2.connect(g2); osc5.connect(g5);
+  g.connect(bgmGainNode); g2.connect(bgmGainNode); g5.connect(bgmGainNode);
 
   osc.start(t); osc.stop(t + dur + 1);
   osc2.start(t); osc2.stop(t + dur + 1);
   osc5.start(t); osc5.stop(t + dur + 1);
   lfo.start(t); lfo.stop(t + dur + 1);
 
-  bgmTimer = setTimeout(playBgmNote, (dur + 0.6) * 1000);
+  bgmTimer = setTimeout(playBgmNote, (dur + 0.4) * 1000);
 }
 
-// Constant grounding drone
+// Deep grounding drone
 function startDrone() {
   if (!audioCtx || droneOsc) return;
   droneOsc = audioCtx.createOscillator();
   droneGain = audioCtx.createGain();
   droneOsc.type = 'sine';
-  droneOsc.frequency.value = 65.4;  // C2 — deep grounding bass
-
-  // Subtle slow pulse
+  droneOsc.frequency.value = 65.4;
   const lfo = audioCtx.createOscillator();
   const lfoG = audioCtx.createGain();
   lfo.type = 'sine';
-  lfo.frequency.value = 0.07;  // ~14 second cycle
+  lfo.frequency.value = 0.07;
   lfoG.gain.value = 0.8;
   lfo.connect(lfoG);
   lfoG.connect(droneOsc.frequency);
-
-  droneGain.gain.value = 0.025;  // barely audible, just felt
+  droneGain.gain.value = 0.022;
   droneOsc.connect(droneGain);
   droneGain.connect(bgmGainNode);
   droneOsc.start();
@@ -449,7 +475,7 @@ function startDrone() {
 }
 
 function stopDrone() {
-  if (droneOsc) { droneOsc.stop(); droneOsc = null; droneGain = null; }
+  if (droneOsc) { try { droneOsc.stop(); } catch(e) {} droneOsc = null; droneGain = null; }
 }
 
 function startBgm() {
@@ -457,11 +483,11 @@ function startBgm() {
   initAudio();
   if (!bgmGainNode) {
     bgmGainNode = audioCtx.createGain();
-    bgmGainNode.gain.value = 0.65;
+    bgmGainNode.gain.value = 0.6;
     bgmGainNode.connect(audioCtx.destination);
   }
   bgmOn = true;
-  bgmIdx = 0;
+  pieceIdx = 0; noteIdx = 0;
   startDrone();
   playBgmNote();
   updateBgmBtn();
@@ -471,26 +497,6 @@ function stopBgm() {
   bgmOn = false;
   if (bgmTimer) { clearTimeout(bgmTimer); bgmTimer = null; }
   stopDrone();
-  updateBgmBtn();
-}
-
-function startBgm() {
-  if (bgmOn) return;
-  initAudio();
-  if (!bgmGainNode) {
-    bgmGainNode = audioCtx.createGain();
-    bgmGainNode.gain.value = 0.7;
-    bgmGainNode.connect(audioCtx.destination);
-  }
-  bgmOn = true;
-  bgmIdx = 0;
-  playBgmNote();
-  updateBgmBtn();
-}
-
-function stopBgm() {
-  bgmOn = false;
-  if (bgmTimer) { clearTimeout(bgmTimer); bgmTimer = null; }
   updateBgmBtn();
 }
 
