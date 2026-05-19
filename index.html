@@ -1044,7 +1044,7 @@ function showHint() {
       }
       if (scope) {
         const hr = Math.floor(idx / 9), hc = idx % 9;
-        showHintResult(hr, hc, n, 'hidden', getCandidates(playerBoard, hr, hc), scope, blocked);
+        showHintResult(hr, hc, n, 'hidden', getCandidates(playerBoard, hr, hc), scope, null, blocked);
         return;
       }
     }
