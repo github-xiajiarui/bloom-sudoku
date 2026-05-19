@@ -338,176 +338,56 @@ function sfxWin() {
   });
 }
 
-// ======== BACKGROUND MUSIC (classical collection) ========
+// ======== BACKGROUND MUSIC (classical recordings) ========
 let bgmOn = false;
-let bgmTimer = null;
-let bgmGainNode = null;
-let droneOsc = null;
-let droneGain = null;
+let bgmAudio = null;
 let pieceIdx = 0;
-let noteIdx = 0;
 let loopSingle = false;
 
-// Semitone-based: freq = 262 * 2^(st/12). Negative = below C4.
-const pieces = [
-  { name:'勃拉姆斯·摇篮曲', composer:'勃拉姆斯', notes:[
-    [0,2],[4,2],[7,2],[4,2],[0,2],[4,2],[7,2],[4,2],
-    [12,2],[7,2],[4,2],[0,2],[-5,2],[-1,2],[2,2],[5,2],[4,3],[0,1],
-    [0,2],[4,2],[7,2],[4,2],[0,2],[4,2],[7,2],[4,2],
-    [12,2],[7,2],[4,2],[0,2],[-5,2],[-1,2],[2,2],[5,2],[4,4]
-  ]},
-  { name:'致爱丽丝', composer:'贝多芬', notes:[
-    [4,2],[3,2],[4,2],[3,2],[4,2],[-1,2],[2,2],[0,2],[-3,4],
-    [-5,2],[-3,2],[0,2],[2,2],[4,3],[2,1],
-    [0,2],[-3,2],[0,2],[4,2],[7,2],[12,2],[4,2],[3,2],[4,4]
-  ]},
-  { name:'G小调第四十交响曲', composer:'莫扎特', notes:[
-    [7,2],[2,2],[7,1],[2,1],[7,2],[11,2],[14,2],[12,2],[9,2],[7,2],[2,2],[5,4],
-    [9,2],[5,2],[9,1],[5,1],[9,2],[12,2],[16,2],[14,2],[11,2],[9,2],[5,2],[7,4],
-    [7,2],[2,2],[7,1],[2,1],[7,2],[11,2],[14,2],[12,2],[9,2],[7,2],[2,2],[5,4]
-  ]},
-  { name:'月光奏鸣曲', composer:'贝多芬', notes:[
-    [-4,3],[1,3],[4,3],[-4,3],[1,3],[4,3],[-4,3],[1,3],[4,3],
-    [-1,3],[5,3],[8,3],[-1,3],[5,3],[8,3],[-1,3],[5,3],[8,3],
-    [0,3],[4,3],[7,3],[0,3],[4,3],[7,3],[0,3],[4,3],[7,3],
-    [-4,3],[1,3],[4,3],[-4,3],[1,3],[4,3],[-4,3],[1,3],[4,6]
-  ]},
-  { name:'小夜曲', composer:'舒伯特', notes:[
-    [2,3],[5,2],[9,3],[7,2],[5,2],[2,2],[4,3],[0,4],
-    [2,3],[5,2],[9,3],[7,2],[5,2],[2,2],[0,4],[-3,2],[-5,6],
-    [4,3],[7,2],[11,3],[9,2],[7,2],[4,2],[5,4],[2,2],[0,4]
-  ]},
-  { name:'夜曲 Op.9 No.2', composer:'肖邦', notes:[
-    [-2,3],[3,2],[7,2],[5,1],[3,2],[2,2],[3,2],[5,2],[7,2],[5,1],[3,4],
-    [-2,3],[3,2],[7,2],[5,1],[3,2],[2,2],[3,2],[5,2],[7,2],[12,2],[9,4],
-    [7,2],[5,1],[3,2],[2,2],[0,2],[2,2],[3,2],[5,2],[7,1],[5,2],[3,4]
-  ]},
-  { name:'小星星变奏曲', composer:'莫扎特', notes:[
-    [0,2],[0,2],[7,2],[7,2],[9,2],[9,2],[7,4],
-    [5,2],[5,2],[4,2],[4,2],[2,2],[2,2],[0,4],
-    [7,2],[7,2],[5,2],[5,2],[4,2],[4,2],[2,4],
-    [7,2],[7,2],[5,2],[5,2],[4,2],[4,2],[2,4],
-    [0,2],[0,2],[7,2],[7,2],[9,2],[9,2],[7,4],
-    [5,2],[5,2],[4,2],[4,2],[2,2],[2,2],[0,6]
-  ]},
-  { name:'月光', composer:'德彪西', notes:[
-    [5,3],[7,2],[9,3],[10,2],[9,2],[7,2],[5,3],[2,3],
-    [5,3],[7,2],[9,3],[10,2],[14,2],[12,2],[10,3],[7,3],
-    [9,3],[10,2],[12,3],[14,2],[12,2],[10,2],[9,3],[5,3],
-    [7,3],[5,2],[2,3],[0,6]
-  ]},
-  { name:'田园交响曲', composer:'贝多芬', notes:[
-    [5,2],[5,2],[7,2],[9,2],[9,2],[7,2],[5,2],[4,2],
-    [2,2],[2,2],[4,2],[5,2],[5,2],[4,2],[4,4],
-    [9,2],[9,2],[7,2],[5,2],[5,2],[7,2],[9,2],[12,2],
-    [9,2],[7,2],[5,2],[4,2],[2,2],[4,2],[5,2],[7,2],[5,4]
-  ]},
-  { name:'亚麻色头发的少女', composer:'德彪西', notes:[
-    [1,3],[3,2],[5,3],[8,2],[6,2],[5,2],[3,3],[1,3],
-    [1,3],[3,2],[5,3],[8,2],[13,2],[10,2],[8,3],[6,3],
-    [6,2],[8,2],[10,3],[8,2],[6,2],[5,2],[8,3],[5,3],
-    [3,3],[1,2],[0,3],[-2,6]
-  ]},
+const tracks = [
+  { name:'梦幻曲', composer:'舒曼', url:'https://upload.wikimedia.org/wikipedia/commons/0/06/Robert_Schumann_-_scenes_from_childhood%2C_op._15_-_vii._dreaming.ogg' },
+  { name:'月光', composer:'德彪西', url:'https://upload.wikimedia.org/wikipedia/commons/b/be/Clair_de_lune_%28Claude_Debussy%29_Suite_bergamasque.ogg' },
+  { name:'月光奏鸣曲', composer:'贝多芬', url:'https://upload.wikimedia.org/wikipedia/commons/e/eb/Beethoven_Moonlight_1st_movement.ogg' },
+  { name:'裸体舞曲', composer:'萨蒂', url:'https://upload.wikimedia.org/wikipedia/commons/b/b7/Gymnopedie_No._1..ogg' },
+  { name:'玄秘曲', composer:'萨蒂', url:'https://upload.wikimedia.org/wikipedia/commons/9/91/Satie_-_Gnossienne_1.ogg' },
+  { name:'亚麻色头发的少女', composer:'德彪西', url:'https://upload.wikimedia.org/wikipedia/commons/c/cb/The_Girl_with_the_Flaxen_Hair.ogg' },
+  { name:'间奏曲 Op.117 No.1', composer:'勃拉姆斯', url:'https://upload.wikimedia.org/wikipedia/commons/8/8d/Brahms_-_Intermezzo%2C_Op._117%2C_No._1.ogg' },
+  { name:'升c小调夜曲', composer:'肖邦', url:'https://upload.wikimedia.org/wikipedia/commons/1/12/Chopin%2C_Nocturne_in_C-sharp_minor%2C_Op._Posth.ogg' },
+  { name:'钢琴奏鸣曲 K.332 慢板', composer:'莫扎特', url:'https://upload.wikimedia.org/wikipedia/commons/d/d0/Mozart_-_Piano_Sonata_No._12_in_F_Major%2C_K.332_-_II._Adagio.ogg' },
+  { name:'更为缓慢的圆舞曲', composer:'德彪西', url:'https://upload.wikimedia.org/wikipedia/commons/c/c1/La_Plus_Que_Lente.ogg' },
 ];
 
-function noteFreq(st) { return 262 * Math.pow(2, st / 12); }
+function currentTrack() { return tracks[pieceIdx]; }
 
-function currentTrack() { return pieces[pieceIdx]; }
-
-function playBgmNote() {
-  if (!bgmOn || !audioCtx) { updateMusicBar(); return; }
-  const piece = currentTrack();
-  if (noteIdx >= piece.notes.length) {
-    noteIdx = 0;
-    if (!loopSingle) pieceIdx = (pieceIdx + 1) % pieces.length;
-    updateMusicBar();
-    bgmTimer = setTimeout(playBgmNote, 2400);
-    return;
-  }
-  if (noteIdx === 0) updateMusicBar();
-  const [st, beats] = piece.notes[noteIdx];
-  noteIdx++;
-  const freq = noteFreq(st);
-  const dur = beats * 1.6;
-  const t = audioCtx.currentTime;
-
-  const osc = audioCtx.createOscillator();
-  const g = audioCtx.createGain();
-  osc.type = 'sine';
-  osc.frequency.value = freq;
-
-  const lfo = audioCtx.createOscillator();
-  const lfoGain = audioCtx.createGain();
-  lfo.type = 'sine'; lfo.frequency.value = 2.8; lfoGain.gain.value = 2.5;
-  lfo.connect(lfoGain); lfoGain.connect(osc.frequency);
-
-  g.gain.setValueAtTime(0, t);
-  g.gain.linearRampToValueAtTime(0.045, t + 0.5);
-  g.gain.setValueAtTime(0.045, t + dur * 0.55);
-  g.gain.exponentialRampToValueAtTime(0.001, t + dur + 0.8);
-
-  const osc2 = audioCtx.createOscillator();
-  const g2 = audioCtx.createGain();
-  osc2.type = 'sine'; osc2.frequency.value = freq * 2;
-  g2.gain.setValueAtTime(0, t);
-  g2.gain.linearRampToValueAtTime(0.01, t + 0.5);
-  g2.gain.exponentialRampToValueAtTime(0.001, t + dur + 0.5);
-
-  const osc5 = audioCtx.createOscillator();
-  const g5 = audioCtx.createGain();
-  osc5.type = 'sine'; osc5.frequency.value = freq * 1.5;
-  g5.gain.setValueAtTime(0, t);
-  g5.gain.linearRampToValueAtTime(0.012, t + 0.4);
-  g5.gain.exponentialRampToValueAtTime(0.001, t + dur + 0.5);
-
-  osc.connect(g); osc2.connect(g2); osc5.connect(g5);
-  g.connect(bgmGainNode); g2.connect(bgmGainNode); g5.connect(bgmGainNode);
-  osc.start(t); osc.stop(t + dur + 1);
-  osc2.start(t); osc2.stop(t + dur + 1);
-  osc5.start(t); osc5.stop(t + dur + 1);
-  lfo.start(t); lfo.stop(t + dur + 1);
-
-  bgmTimer = setTimeout(playBgmNote, (dur + 0.4) * 1000);
+function ensureAudio() {
+  if (bgmAudio) return;
+  bgmAudio = new Audio();
+  bgmAudio.volume = 0.5;
+  bgmAudio.addEventListener('ended', () => {
+    if (!bgmOn) return;
+    if (loopSingle) { bgmAudio.currentTime = 0; bgmAudio.play().catch(() => {}); }
+    else { pieceIdx = (pieceIdx + 1) % tracks.length; updateMusicBar(); playCurrent(); }
+  });
 }
 
-function startDrone() {
-  if (!audioCtx || droneOsc) return;
-  droneOsc = audioCtx.createOscillator();
-  droneGain = audioCtx.createGain();
-  droneOsc.type = 'sine';
-  droneOsc.frequency.value = 65.4;
-  const lfo = audioCtx.createOscillator();
-  const lfoG = audioCtx.createGain();
-  lfo.type = 'sine'; lfo.frequency.value = 0.07; lfoG.gain.value = 0.8;
-  lfo.connect(lfoG); lfoG.connect(droneOsc.frequency);
-  droneGain.gain.value = 0.022;
-  droneOsc.connect(droneGain); droneGain.connect(bgmGainNode);
-  droneOsc.start(); lfo.start();
-}
-
-function stopDrone() {
-  if (droneOsc) { try { droneOsc.stop(); } catch(e) {} droneOsc = null; droneGain = null; }
+function playCurrent() {
+  ensureAudio();
+  bgmAudio.src = currentTrack().url;
+  bgmAudio.play().catch(() => {});
+  updateMusicBar();
 }
 
 function startBgm() {
   if (bgmOn) return;
   initAudio();
-  if (!bgmGainNode) {
-    bgmGainNode = audioCtx.createGain();
-    bgmGainNode.gain.value = 0.6;
-    bgmGainNode.connect(audioCtx.destination);
-  }
+  ensureAudio();
   bgmOn = true;
-  noteIdx = 0;
-  startDrone();
-  playBgmNote();
-  updateMusicBar();
+  playCurrent();
 }
 
 function stopBgm() {
   bgmOn = false;
-  if (bgmTimer) { clearTimeout(bgmTimer); bgmTimer = null; }
-  stopDrone();
+  if (bgmAudio) bgmAudio.pause();
   updateMusicBar();
 }
 
@@ -517,23 +397,13 @@ function togglePlay() {
 }
 
 function prevTrack() {
-  pieceIdx = (pieceIdx - 1 + pieces.length) % pieces.length;
-  noteIdx = 0;
-  if (bgmOn) {
-    if (bgmTimer) { clearTimeout(bgmTimer); bgmTimer = null; }
-    playBgmNote();
-  }
-  updateMusicBar();
+  pieceIdx = (pieceIdx - 1 + tracks.length) % tracks.length;
+  if (bgmOn) playCurrent(); else updateMusicBar();
 }
 
 function nextTrack() {
-  pieceIdx = (pieceIdx + 1) % pieces.length;
-  noteIdx = 0;
-  if (bgmOn) {
-    if (bgmTimer) { clearTimeout(bgmTimer); bgmTimer = null; }
-    playBgmNote();
-  }
-  updateMusicBar();
+  pieceIdx = (pieceIdx + 1) % tracks.length;
+  if (bgmOn) playCurrent(); else updateMusicBar();
 }
 
 function toggleLoop() {
