@@ -425,9 +425,8 @@ function shuffle(arr) {
 }
 
 // ======== TRANSFORMATIONS ========
-function applyTransformations(board) {
+function applyTransform(board, op, shift) {
   let b = [...board];
-  const op = Math.floor(Math.random() * 7);
   switch (op) {
     case 0: b = mirrorH(b); break;
     case 1: b = mirrorV(b); break;
@@ -437,9 +436,38 @@ function applyTransformations(board) {
     case 5: b = mirrorH(b); b = rotate90(b); break;
     case 6: b = mirrorV(b); b = rotate90(b); break;
   }
-  const shift = Math.floor(Math.random() * 8) + 1;
   b = b.map(v => ((v - 1 + shift) % 9) + 1);
   return b;
+}
+
+function applyTransformExclude0(board, op, shift) {
+  let b = [...board];
+  switch (op) {
+    case 0: b = mirrorH(b); break;
+    case 1: b = mirrorV(b); break;
+    case 2: b = rotate90(b); break;
+    case 3: b = rotate90(b); b = rotate90(b); break;
+    case 4: b = rotate90(b); b = rotate90(b); b = rotate90(b); break;
+    case 5: b = mirrorH(b); b = rotate90(b); break;
+    case 6: b = mirrorV(b); b = rotate90(b); break;
+  }
+  b = b.map(v => v === 0 ? 0 : ((v - 1 + shift) % 9) + 1);
+  return b;
+}
+
+function randomTransformParams() {
+  return { op: Math.floor(Math.random() * 7), shift: Math.floor(Math.random() * 8) + 1 };
+}
+
+// Backward-compat wrappers for 40/50
+function applyTransformations(board) {
+  const { op, shift } = randomTransformParams();
+  return applyTransform(board, op, shift);
+}
+
+function applyTransformationsReuse(board) {
+  const { op, shift } = randomTransformParams();
+  return applyTransformExclude0(board, op, shift);
 }
 
 function mirrorH(b) {
@@ -769,10 +797,10 @@ function newGame() {
 
   ensurePool(difficulty);
   if (difficulty === 60) {
-    // 60-empty: use pre-made puzzle+answer pair
     const pair = getNextSourcePuzzle(difficulty);
-    solved = applyTransformations(pair.solved);
-    puzzle = applyTransformationsReuse(pair.puzzle);
+    const { op, shift } = randomTransformParams();
+    solved = applyTransform(pair.solved, op, shift);
+    puzzle = applyTransformExclude0(pair.puzzle, op, shift);
   } else {
     const source = getNextSourcePuzzle(difficulty);
     const transformed = applyTransformations(source);
