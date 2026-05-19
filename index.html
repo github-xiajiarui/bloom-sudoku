@@ -18,7 +18,7 @@ body {
 .container { max-width: 420px; width: 100%; padding: 0 12px 12px 12px; }
 
 /* Header */
-.header { text-align: center; margin-bottom: 4px; }
+.header { position: relative; text-align: center; margin-bottom: 4px; }
 .header h1 {
   display: inline; font-size: 24px;
   background: linear-gradient(135deg, #e91e63, #9c27b0, #7c3aed);
@@ -26,6 +26,12 @@ body {
   background-clip: text; letter-spacing: 2px;
 }
 .version { font-size: 10px; color: #b39ddb; vertical-align: super; margin-left: 2px; }
+.btn-music {
+  position: absolute; top: 0; right: 0; background: none; border: none;
+  font-size: 22px; cursor: pointer; opacity: 0.4; transition: opacity .3s;
+  padding: 0; line-height: 1; -webkit-tap-highlight-color: transparent;
+}
+.btn-music:hover, .btn-music.active { opacity: 0.85; }
 
 /* Difficulty */
 .diff-row { display: flex; gap: 6px; margin-bottom: 6px; justify-content: center; }
@@ -151,8 +157,6 @@ td.bottom { border-bottom: 2.5px solid #7b1fa2; }
 .btn-hint { background: linear-gradient(135deg, #64b5f6, #42a5f5); }
 .btn-undo { background: linear-gradient(135deg, #ffb74d, #ff9800); }
 .btn-new { background: linear-gradient(135deg, #ce93d8, #ab47bc); }
-.btn-bgm { background: linear-gradient(135deg, #90caf9, #64b5f6); }
-.btn-bgm.active { background: linear-gradient(135deg, #66bb6a, #43a047); box-shadow: 0 0 0 3px rgba(76,175,80,.25); }
 
 /* Hint panel - reserved space with visibility toggle to prevent layout shift */
 .hint-area { min-height: 0; transition: min-height .2s; }
@@ -189,7 +193,10 @@ td.bottom { border-bottom: 2.5px solid #7b1fa2; }
 </head>
 <body>
 <div class="container" id="container">
-  <div class="header"><h1>Bloom Sudoku</h1><span class="version" id="version"></span></div>
+  <div class="header">
+    <h1>Bloom Sudoku</h1><span class="version" id="version"></span>
+    <button class="btn-music" id="btnBgm" onclick="toggleBgm()" title="背景音乐">🔇</button>
+  </div>
 
   <div class="diff-row">
     <button class="diff-btn" data-diff="40">🌸 简单 40空</button>
@@ -214,7 +221,6 @@ td.bottom { border-bottom: 2.5px solid #7b1fa2; }
     <button class="act-btn btn-notes" id="btnNotes" onclick="toggleNotes()">📝 笔记</button>
     <button class="act-btn btn-hint" onclick="showHint()">💡 提示</button>
     <button class="act-btn btn-undo" onclick="undoMove()">↩ 撤销</button>
-    <button class="act-btn btn-bgm" id="btnBgm" onclick="toggleBgm()">🔇 音乐</button>
     <button class="act-btn btn-new" onclick="confirmNewGame()">🔄 重开</button>
   </div>
 
@@ -409,8 +415,10 @@ function toggleBgm() {
 
 function updateBgmBtn() {
   const btn = document.getElementById('btnBgm');
-  if (btn) btn.textContent = bgmOn ? '🎵 音乐' : '🔇 音乐';
-  if (btn) btn.classList.toggle('active', bgmOn);
+  if (!btn) return;
+  btn.textContent = bgmOn ? '🎵' : '🔇';
+  if (bgmOn) btn.classList.add('active');
+  else btn.classList.remove('active');
 }
 
 // 40/50: solved source grids, puzzles generated at runtime with logic solvability
