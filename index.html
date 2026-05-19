@@ -315,77 +315,163 @@ function sfxWin() {
   });
 }
 
-// ======== BACKGROUND MUSIC ========
+// ======== BACKGROUND MUSIC (yoga meditation) ========
 let bgmOn = false;
 let bgmTimer = null;
 let bgmGainNode = null;
-const pentatonic = [262, 294, 330, 392, 440, 523, 587, 659, 784, 880];
+let droneOsc = null;
+let droneGain = null;
+
+// Low pentatonic: C3 D3 E3 G3 A3 C4 D4 E4 G4 A4
+const penta = [131, 147, 165, 196, 220, 262, 294, 330, 392, 440];
+
+// Very slow, spacious yoga melody — each note ~3-5 seconds
 const melody = [
-  // Slow meditative pentatonic melody, ~48 BPM
-  { n: 4, d: 1.4 },  // A4
-  { n: 3, d: 0.7 },  // G4
-  { n: 2, d: 0.7 },  // E4
-  { n: 4, d: 1.4 },  // A4
-  { n: 5, d: 0.7 },  // C5
-  { n: 4, d: 0.7 },  // A4
-  { n: 3, d: 2.1 },  // G4
-  { n: 0, d: 1.4 },  // C4 (rest-like)
-  { n: 2, d: 1.4 },  // E4
-  { n: 3, d: 0.7 },  // G4
-  { n: 5, d: 0.7 },  // C5
-  { n: 7, d: 1.4 },  // E5
-  { n: 6, d: 0.7 },  // D5
-  { n: 5, d: 0.7 },  // C5
-  { n: 4, d: 2.1 },  // A4
-  { n: 3, d: 1.4 },  // G4
-  { n: 4, d: 0.7 },  // A4
-  { n: 3, d: 0.7 },  // G4
-  { n: 2, d: 1.4 },  // E4
-  { n: 1, d: 0.7 },  // D4
-  { n: 0, d: 0.7 },  // C4
-  { n: 1, d: 2.8 },  // D4 (held)
+  { n: 5, d: 3.6 },  // C4
+  { n: 7, d: 2.4 },  // E4
+  { n: 8, d: 4.8 },  // G4  (held)
+  null,                // rest
+  { n: 7, d: 3.0 },  // E4
+  { n: 5, d: 2.4 },  // C4
+  { n: 3, d: 4.2 },  // G3  (held)
+  null,
+  { n: 4, d: 3.0 },  // A3
+  { n: 5, d: 2.4 },  // C4
+  { n: 7, d: 3.6 },  // E4
+  { n: 9, d: 5.4 },  // A4  (held, peak)
+  null,
+  { n: 8, d: 3.0 },  // G4
+  { n: 7, d: 2.4 },  // E4
+  { n: 5, d: 3.0 },  // C4
+  { n: 4, d: 5.4 },  // A3  (held)
+  null,
+  { n: 3, d: 3.0 },  // G3
+  { n: 4, d: 2.4 },  // A3
+  { n: 5, d: 4.8 },  // C4  (held)
+  null,
+  { n: 5, d: 3.0 },  // C4
+  { n: 3, d: 3.0 },  // G3
+  { n: 2, d: 3.0 },  // E3
+  { n: 0, d: 6.0 },  // C3  (grounding, held long)
 ];
 let bgmIdx = 0;
 
 function playBgmNote() {
   if (!bgmOn || !audioCtx) return;
   const note = melody[bgmIdx];
-  const freq = pentatonic[note.n];
-  const dur = note.d;
+  bgmIdx = (bgmIdx + 1) % melody.length;
 
+  if (!note) {
+    // Rest — silence for one beat
+    bgmTimer = setTimeout(playBgmNote, 2200);
+    return;
+  }
+
+  const freq = penta[note.n];
+  const dur = note.d;
+  const t = audioCtx.currentTime;
+
+  // Main voice: soft triangle wave with slow attack & long decay
   const osc = audioCtx.createOscillator();
   const g = audioCtx.createGain();
   osc.type = 'sine';
   osc.frequency.value = freq;
 
-  // Gentle attack and long decay for relaxing feel
-  const t = audioCtx.currentTime;
-  g.gain.setValueAtTime(0, t);
-  g.gain.linearRampToValueAtTime(0.06, t + 0.08);
-  g.gain.setValueAtTime(0.06, t + dur * 0.7);
-  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  // Subtle vibrato via frequency modulation
+  const lfo = audioCtx.createOscillator();
+  const lfoGain = audioCtx.createGain();
+  lfo.type = 'sine';
+  lfo.frequency.value = 2.8;  // slow shimmer
+  lfoGain.gain.value = 2.5;
+  lfo.connect(lfoGain);
+  lfoGain.connect(osc.frequency);
 
-  // Add a quiet harmonic overtone for warmth
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(0.05, t + 0.5);  // very slow fade in
+  g.gain.setValueAtTime(0.05, t + dur * 0.6);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur + 0.8);  // long tail
+
+  // Upper harmonic octave, even quieter
   const osc2 = audioCtx.createOscillator();
   const g2 = audioCtx.createGain();
   osc2.type = 'sine';
   osc2.frequency.value = freq * 2;
   g2.gain.setValueAtTime(0, t);
-  g2.gain.linearRampToValueAtTime(0.012, t + 0.06);
-  g2.gain.exponentialRampToValueAtTime(0.001, t + dur * 0.6);
+  g2.gain.linearRampToValueAtTime(0.012, t + 0.6);
+  g2.gain.exponentialRampToValueAtTime(0.001, t + dur + 0.5);
+
+  // Fifth harmonic for warmth
+  const osc5 = audioCtx.createOscillator();
+  const g5 = audioCtx.createGain();
+  osc5.type = 'sine';
+  osc5.frequency.value = freq * 1.5;  // perfect fifth
+  g5.gain.setValueAtTime(0, t);
+  g5.gain.linearRampToValueAtTime(0.015, t + 0.45);
+  g5.gain.exponentialRampToValueAtTime(0.001, t + dur + 0.5);
 
   osc.connect(g);
   osc2.connect(g2);
+  osc5.connect(g5);
   g.connect(bgmGainNode);
   g2.connect(bgmGainNode);
+  g5.connect(bgmGainNode);
 
-  osc.start(t);
-  osc.stop(t + dur);
-  osc2.start(t);
-  osc2.stop(t + dur);
+  osc.start(t); osc.stop(t + dur + 1);
+  osc2.start(t); osc2.stop(t + dur + 1);
+  osc5.start(t); osc5.stop(t + dur + 1);
+  lfo.start(t); lfo.stop(t + dur + 1);
 
-  bgmIdx = (bgmIdx + 1) % melody.length;
-  bgmTimer = setTimeout(playBgmNote, dur * 1000);
+  bgmTimer = setTimeout(playBgmNote, (dur + 0.6) * 1000);
+}
+
+// Constant grounding drone
+function startDrone() {
+  if (!audioCtx || droneOsc) return;
+  droneOsc = audioCtx.createOscillator();
+  droneGain = audioCtx.createGain();
+  droneOsc.type = 'sine';
+  droneOsc.frequency.value = 65.4;  // C2 — deep grounding bass
+
+  // Subtle slow pulse
+  const lfo = audioCtx.createOscillator();
+  const lfoG = audioCtx.createGain();
+  lfo.type = 'sine';
+  lfo.frequency.value = 0.07;  // ~14 second cycle
+  lfoG.gain.value = 0.8;
+  lfo.connect(lfoG);
+  lfoG.connect(droneOsc.frequency);
+
+  droneGain.gain.value = 0.025;  // barely audible, just felt
+  droneOsc.connect(droneGain);
+  droneGain.connect(bgmGainNode);
+  droneOsc.start();
+  lfo.start();
+}
+
+function stopDrone() {
+  if (droneOsc) { droneOsc.stop(); droneOsc = null; droneGain = null; }
+}
+
+function startBgm() {
+  if (bgmOn) return;
+  initAudio();
+  if (!bgmGainNode) {
+    bgmGainNode = audioCtx.createGain();
+    bgmGainNode.gain.value = 0.65;
+    bgmGainNode.connect(audioCtx.destination);
+  }
+  bgmOn = true;
+  bgmIdx = 0;
+  startDrone();
+  playBgmNote();
+  updateBgmBtn();
+}
+
+function stopBgm() {
+  bgmOn = false;
+  if (bgmTimer) { clearTimeout(bgmTimer); bgmTimer = null; }
+  stopDrone();
+  updateBgmBtn();
 }
 
 function startBgm() {
