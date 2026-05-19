@@ -26,12 +26,6 @@ body {
   background-clip: text; letter-spacing: 2px;
 }
 .version { font-size: 10px; color: #b39ddb; vertical-align: super; margin-left: 2px; }
-.btn-music {
-  position: absolute; top: 0; right: 0; background: none; border: none;
-  font-size: 22px; cursor: pointer; opacity: 0.4; transition: opacity .3s;
-  padding: 0; line-height: 1; -webkit-tap-highlight-color: transparent;
-}
-.btn-music:hover, .btn-music.active { opacity: 0.85; }
 
 /* Difficulty */
 .diff-row { display: flex; gap: 6px; margin-bottom: 6px; justify-content: center; }
@@ -189,14 +183,32 @@ td.bottom { border-bottom: 2.5px solid #7b1fa2; }
 }
 .btn-yes { background: linear-gradient(135deg, #ef5350, #e53935); color: #fff; }
 .btn-no { background: #eee; color: #666; }
+
+/* Music bar */
+.music-bar {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 6px 10px; margin-top: 6px;
+  background: rgba(255,255,255,.7); border-radius: 12px;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  font-size: 11px; color: #6a1b9a;
+}
+.music-bar .track-info { flex: 1; min-width: 0; text-align: center; line-height: 1.3; }
+.music-bar .track-name { font-weight: 600; font-size: 12px; }
+.music-bar .track-composer { font-size: 10px; color: #999; }
+.music-bar button {
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+  border: none; font-size: 13px; cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+  background: rgba(156,39,176,.08); color: #7b1fa2;
+  transition: all .2s; -webkit-tap-highlight-color: transparent;
+}
+.music-bar button:active { background: rgba(156,39,176,.2); }
+.music-bar button.active-btn { background: #ce93d8; color: #fff; }
 </style>
 </head>
 <body>
 <div class="container" id="container">
-  <div class="header">
-    <h1>Bloom Sudoku</h1><span class="version" id="version"></span>
-    <button class="btn-music" id="btnBgm" onclick="toggleBgm()" title="背景音乐">🔇</button>
-  </div>
+  <div class="header"><h1>Bloom Sudoku</h1><span class="version" id="version"></span></div>
 
   <div class="diff-row">
     <button class="diff-btn" data-diff="40">🌸 简单 40空</button>
@@ -226,6 +238,17 @@ td.bottom { border-bottom: 2.5px solid #7b1fa2; }
 
   <div class="hint-area" id="hintArea">
     <div class="hint-panel" id="hintPanel"></div>
+  </div>
+
+  <div class="music-bar" id="musicBar">
+    <button onclick="prevTrack()" title="上一首">⏮</button>
+    <button id="btnPlay" onclick="togglePlay()" title="播放/暂停">▶</button>
+    <button onclick="nextTrack()" title="下一首">⏭</button>
+    <div class="track-info">
+      <div class="track-name" id="trackName"></div>
+      <div class="track-composer" id="trackComposer"></div>
+    </div>
+    <button id="btnLoop" onclick="toggleLoop()" title="单曲循环">🔁</button>
   </div>
 </div>
 
@@ -323,43 +346,43 @@ let droneOsc = null;
 let droneGain = null;
 let pieceIdx = 0;
 let noteIdx = 0;
+let loopSingle = false;
 
 // Semitone-based: freq = 262 * 2^(st/12). Negative = below C4.
-// [semitone_from_C4, duration_in_beats], beat ≈ 1.6s (slow meditative)
 const pieces = [
-  { name:'勃拉姆斯·摇篮曲', notes:[
+  { name:'勃拉姆斯·摇篮曲', composer:'勃拉姆斯', notes:[
     [0,2],[4,2],[7,2],[4,2],[0,2],[4,2],[7,2],[4,2],
     [12,2],[7,2],[4,2],[0,2],[-5,2],[-1,2],[2,2],[5,2],[4,3],[0,1],
     [0,2],[4,2],[7,2],[4,2],[0,2],[4,2],[7,2],[4,2],
     [12,2],[7,2],[4,2],[0,2],[-5,2],[-1,2],[2,2],[5,2],[4,4]
   ]},
-  { name:'贝多芬·致爱丽丝', notes:[
+  { name:'致爱丽丝', composer:'贝多芬', notes:[
     [4,2],[3,2],[4,2],[3,2],[4,2],[-1,2],[2,2],[0,2],[-3,4],
     [-5,2],[-3,2],[0,2],[2,2],[4,3],[2,1],
     [0,2],[-3,2],[0,2],[4,2],[7,2],[12,2],[4,2],[3,2],[4,4]
   ]},
-  { name:'莫扎特·G小调第四十交响曲', notes:[
+  { name:'G小调第四十交响曲', composer:'莫扎特', notes:[
     [7,2],[2,2],[7,1],[2,1],[7,2],[11,2],[14,2],[12,2],[9,2],[7,2],[2,2],[5,4],
     [9,2],[5,2],[9,1],[5,1],[9,2],[12,2],[16,2],[14,2],[11,2],[9,2],[5,2],[7,4],
     [7,2],[2,2],[7,1],[2,1],[7,2],[11,2],[14,2],[12,2],[9,2],[7,2],[2,2],[5,4]
   ]},
-  { name:'贝多芬·月光奏鸣曲', notes:[
+  { name:'月光奏鸣曲', composer:'贝多芬', notes:[
     [-4,3],[1,3],[4,3],[-4,3],[1,3],[4,3],[-4,3],[1,3],[4,3],
     [-1,3],[5,3],[8,3],[-1,3],[5,3],[8,3],[-1,3],[5,3],[8,3],
     [0,3],[4,3],[7,3],[0,3],[4,3],[7,3],[0,3],[4,3],[7,3],
     [-4,3],[1,3],[4,3],[-4,3],[1,3],[4,3],[-4,3],[1,3],[4,6]
   ]},
-  { name:'舒伯特·小夜曲', notes:[
+  { name:'小夜曲', composer:'舒伯特', notes:[
     [2,3],[5,2],[9,3],[7,2],[5,2],[2,2],[4,3],[0,4],
     [2,3],[5,2],[9,3],[7,2],[5,2],[2,2],[0,4],[-3,2],[-5,6],
     [4,3],[7,2],[11,3],[9,2],[7,2],[4,2],[5,4],[2,2],[0,4]
   ]},
-  { name:'肖邦·夜曲 Op.9 No.2', notes:[
+  { name:'夜曲 Op.9 No.2', composer:'肖邦', notes:[
     [-2,3],[3,2],[7,2],[5,1],[3,2],[2,2],[3,2],[5,2],[7,2],[5,1],[3,4],
     [-2,3],[3,2],[7,2],[5,1],[3,2],[2,2],[3,2],[5,2],[7,2],[12,2],[9,4],
     [7,2],[5,1],[3,2],[2,2],[0,2],[2,2],[3,2],[5,2],[7,1],[5,2],[3,4]
   ]},
-  { name:'莫扎特·小星星变奏曲', notes:[
+  { name:'小星星变奏曲', composer:'莫扎特', notes:[
     [0,2],[0,2],[7,2],[7,2],[9,2],[9,2],[7,4],
     [5,2],[5,2],[4,2],[4,2],[2,2],[2,2],[0,4],
     [7,2],[7,2],[5,2],[5,2],[4,2],[4,2],[2,4],
@@ -367,19 +390,19 @@ const pieces = [
     [0,2],[0,2],[7,2],[7,2],[9,2],[9,2],[7,4],
     [5,2],[5,2],[4,2],[4,2],[2,2],[2,2],[0,6]
   ]},
-  { name:'德彪西·月光', notes:[
+  { name:'月光', composer:'德彪西', notes:[
     [5,3],[7,2],[9,3],[10,2],[9,2],[7,2],[5,3],[2,3],
     [5,3],[7,2],[9,3],[10,2],[14,2],[12,2],[10,3],[7,3],
     [9,3],[10,2],[12,3],[14,2],[12,2],[10,2],[9,3],[5,3],
     [7,3],[5,2],[2,3],[0,6]
   ]},
-  { name:'贝多芬·田园交响曲', notes:[
+  { name:'田园交响曲', composer:'贝多芬', notes:[
     [5,2],[5,2],[7,2],[9,2],[9,2],[7,2],[5,2],[4,2],
     [2,2],[2,2],[4,2],[5,2],[5,2],[4,2],[4,4],
     [9,2],[9,2],[7,2],[5,2],[5,2],[7,2],[9,2],[12,2],
     [9,2],[7,2],[5,2],[4,2],[2,2],[4,2],[5,2],[7,2],[5,4]
   ]},
-  { name:'德彪西·亚麻色头发的少女', notes:[
+  { name:'亚麻色头发的少女', composer:'德彪西', notes:[
     [1,3],[3,2],[5,3],[8,2],[6,2],[5,2],[3,3],[1,3],
     [1,3],[3,2],[5,3],[8,2],[13,2],[10,2],[8,3],[6,3],
     [6,2],[8,2],[10,3],[8,2],[6,2],[5,2],[8,3],[5,3],
@@ -389,62 +412,56 @@ const pieces = [
 
 function noteFreq(st) { return 262 * Math.pow(2, st / 12); }
 
+function currentTrack() { return pieces[pieceIdx]; }
+
 function playBgmNote() {
-  if (!bgmOn || !audioCtx) return;
-  const piece = pieces[pieceIdx];
+  if (!bgmOn || !audioCtx) { updateMusicBar(); return; }
+  const piece = currentTrack();
   if (noteIdx >= piece.notes.length) {
     noteIdx = 0;
-    pieceIdx = (pieceIdx + 1) % pieces.length;
+    if (!loopSingle) pieceIdx = (pieceIdx + 1) % pieces.length;
+    updateMusicBar();
     bgmTimer = setTimeout(playBgmNote, 2400);
     return;
   }
+  if (noteIdx === 0) updateMusicBar();
   const [st, beats] = piece.notes[noteIdx];
   noteIdx++;
   const freq = noteFreq(st);
   const dur = beats * 1.6;
   const t = audioCtx.currentTime;
 
-  // Main voice
   const osc = audioCtx.createOscillator();
   const g = audioCtx.createGain();
   osc.type = 'sine';
   osc.frequency.value = freq;
 
-  // Subtle vibrato
   const lfo = audioCtx.createOscillator();
   const lfoGain = audioCtx.createGain();
-  lfo.type = 'sine';
-  lfo.frequency.value = 2.8;
-  lfoGain.gain.value = 2.5;
-  lfo.connect(lfoGain);
-  lfoGain.connect(osc.frequency);
+  lfo.type = 'sine'; lfo.frequency.value = 2.8; lfoGain.gain.value = 2.5;
+  lfo.connect(lfoGain); lfoGain.connect(osc.frequency);
 
   g.gain.setValueAtTime(0, t);
   g.gain.linearRampToValueAtTime(0.045, t + 0.5);
   g.gain.setValueAtTime(0.045, t + dur * 0.55);
   g.gain.exponentialRampToValueAtTime(0.001, t + dur + 0.8);
 
-  // Octave overtone
   const osc2 = audioCtx.createOscillator();
   const g2 = audioCtx.createGain();
-  osc2.type = 'sine';
-  osc2.frequency.value = freq * 2;
+  osc2.type = 'sine'; osc2.frequency.value = freq * 2;
   g2.gain.setValueAtTime(0, t);
   g2.gain.linearRampToValueAtTime(0.01, t + 0.5);
   g2.gain.exponentialRampToValueAtTime(0.001, t + dur + 0.5);
 
-  // Fifth overtone
   const osc5 = audioCtx.createOscillator();
   const g5 = audioCtx.createGain();
-  osc5.type = 'sine';
-  osc5.frequency.value = freq * 1.5;
+  osc5.type = 'sine'; osc5.frequency.value = freq * 1.5;
   g5.gain.setValueAtTime(0, t);
   g5.gain.linearRampToValueAtTime(0.012, t + 0.4);
   g5.gain.exponentialRampToValueAtTime(0.001, t + dur + 0.5);
 
   osc.connect(g); osc2.connect(g2); osc5.connect(g5);
   g.connect(bgmGainNode); g2.connect(bgmGainNode); g5.connect(bgmGainNode);
-
   osc.start(t); osc.stop(t + dur + 1);
   osc2.start(t); osc2.stop(t + dur + 1);
   osc5.start(t); osc5.stop(t + dur + 1);
@@ -453,7 +470,6 @@ function playBgmNote() {
   bgmTimer = setTimeout(playBgmNote, (dur + 0.4) * 1000);
 }
 
-// Deep grounding drone
 function startDrone() {
   if (!audioCtx || droneOsc) return;
   droneOsc = audioCtx.createOscillator();
@@ -462,16 +478,11 @@ function startDrone() {
   droneOsc.frequency.value = 65.4;
   const lfo = audioCtx.createOscillator();
   const lfoG = audioCtx.createGain();
-  lfo.type = 'sine';
-  lfo.frequency.value = 0.07;
-  lfoG.gain.value = 0.8;
-  lfo.connect(lfoG);
-  lfoG.connect(droneOsc.frequency);
+  lfo.type = 'sine'; lfo.frequency.value = 0.07; lfoG.gain.value = 0.8;
+  lfo.connect(lfoG); lfoG.connect(droneOsc.frequency);
   droneGain.gain.value = 0.022;
-  droneOsc.connect(droneGain);
-  droneGain.connect(bgmGainNode);
-  droneOsc.start();
-  lfo.start();
+  droneOsc.connect(droneGain); droneGain.connect(bgmGainNode);
+  droneOsc.start(); lfo.start();
 }
 
 function stopDrone() {
@@ -487,30 +498,63 @@ function startBgm() {
     bgmGainNode.connect(audioCtx.destination);
   }
   bgmOn = true;
-  pieceIdx = 0; noteIdx = 0;
+  noteIdx = 0;
   startDrone();
   playBgmNote();
-  updateBgmBtn();
+  updateMusicBar();
 }
 
 function stopBgm() {
   bgmOn = false;
   if (bgmTimer) { clearTimeout(bgmTimer); bgmTimer = null; }
   stopDrone();
-  updateBgmBtn();
+  updateMusicBar();
 }
 
-function toggleBgm() {
+function togglePlay() {
   if (bgmOn) stopBgm();
   else startBgm();
 }
 
-function updateBgmBtn() {
-  const btn = document.getElementById('btnBgm');
-  if (!btn) return;
-  btn.textContent = bgmOn ? '🎵' : '🔇';
-  if (bgmOn) btn.classList.add('active');
-  else btn.classList.remove('active');
+function prevTrack() {
+  pieceIdx = (pieceIdx - 1 + pieces.length) % pieces.length;
+  noteIdx = 0;
+  if (bgmOn) {
+    if (bgmTimer) { clearTimeout(bgmTimer); bgmTimer = null; }
+    playBgmNote();
+  }
+  updateMusicBar();
+}
+
+function nextTrack() {
+  pieceIdx = (pieceIdx + 1) % pieces.length;
+  noteIdx = 0;
+  if (bgmOn) {
+    if (bgmTimer) { clearTimeout(bgmTimer); bgmTimer = null; }
+    playBgmNote();
+  }
+  updateMusicBar();
+}
+
+function toggleLoop() {
+  loopSingle = !loopSingle;
+  updateMusicBar();
+}
+
+function updateMusicBar() {
+  const track = currentTrack();
+  const elName = document.getElementById('trackName');
+  const elComp = document.getElementById('trackComposer');
+  const elPlay = document.getElementById('btnPlay');
+  const elLoop = document.getElementById('btnLoop');
+  if (elName) elName.textContent = track.name;
+  if (elComp) elComp.textContent = track.composer;
+  if (elPlay) elPlay.textContent = bgmOn ? '⏸' : '▶';
+  if (elLoop) {
+    elLoop.textContent = '🔁';
+    if (loopSingle) elLoop.classList.add('active-btn');
+    else elLoop.classList.remove('active-btn');
+  }
 }
 
 // 40/50: solved source grids, puzzles generated at runtime with logic solvability
