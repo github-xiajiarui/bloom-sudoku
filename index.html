@@ -275,6 +275,14 @@ td.bottom { border-bottom: 2.5px solid #7b1fa2; }
   </div>
 </div>
 
+<div class="overlay" id="failOverlay">
+  <div class="overlay-inner">
+    <h2>😢 通关失败</h2>
+    <p id="failMsg"></p>
+    <button class="act-btn btn-new" onclick="closeFailOverlay()">再来一局</button>
+  </div>
+</div>
+
 <script>
 // ======== SUDOKU ENGINE ========
 
@@ -796,7 +804,7 @@ let timerInterval = null;
 let history = [];
 let notes = null;
 let notesMode = false;
-let hintPanelEl, hintAreaEl, boardEl, numpadEl, timerEl, mistakesEl, winOverlayEl, overlayMsgEl, confirmOverlayEl, btnNotesEl, containerEl;
+let hintPanelEl, hintAreaEl, boardEl, numpadEl, timerEl, mistakesEl, winOverlayEl, overlayMsgEl, confirmOverlayEl, failOverlayEl, failMsgEl, btnNotesEl, containerEl;
 let puzzlePool = { 40: [], 50: [], 60: [] };
 let currentPoolIdx = { 40: 0, 50: 0, 60: 0 };
 
@@ -811,6 +819,8 @@ function init() {
   winOverlayEl = document.getElementById('winOverlay');
   overlayMsgEl = document.getElementById('overlayMsg');
   confirmOverlayEl = document.getElementById('confirmOverlay');
+  failOverlayEl = document.getElementById('failOverlay');
+  failMsgEl = document.getElementById('failMsg');
   btnNotesEl = document.getElementById('btnNotes');
   containerEl = document.getElementById('container');
   document.getElementById('version').textContent = APP_VERSION;
@@ -947,6 +957,7 @@ function newGame() {
   hintAreaEl.classList.remove('active');
   winOverlayEl.classList.remove('show');
   confirmOverlayEl.classList.remove('show');
+  failOverlayEl.classList.remove('show');
 
   ensurePool(difficulty);
   if (difficulty === 60) {
@@ -1159,8 +1170,10 @@ function placeNumber(n) {
     sfxError();
     if (mistakes >= 3) {
       setTimeout(() => {
-        alert('错误次数已达上限，游戏结束！请开始新游戏。');
-      }, 300);
+        failMsgEl.textContent = `难度: ${difficulty}空 | 用时: ${formatTime(timeSec)} | 错误: ${mistakes}/3`;
+        failOverlayEl.classList.add('show');
+        stopTimer();
+      }, 400);
     }
     return;
   }
@@ -1461,6 +1474,11 @@ function closeWinOverlay() {
   winOverlayEl.classList.remove('show');
 }
 
+function closeFailOverlay() {
+  failOverlayEl.classList.remove('show');
+  newGame();
+}
+
 // ======== TIMER ========
 function startTimer() {
   if (timerInterval) return;
@@ -1495,7 +1513,7 @@ document.addEventListener('click', function startT() {
     firstInteractionDone = true;
     startBgm();
   }
-  if (!timerInterval && !winOverlayEl.classList.contains('show') && !confirmOverlayEl.classList.contains('show')) startTimer();
+  if (!timerInterval && !winOverlayEl.classList.contains('show') && !confirmOverlayEl.classList.contains('show') && !failOverlayEl.classList.contains('show')) startTimer();
 }, { once: false });
 
 // ======== BOOT ========
