@@ -1519,6 +1519,7 @@ function showHintResult(r, c, n, type, cands, scope, failDetails, blocked) {
   sfxClick();
   renderBoard();
   updateNumpad();
+  saveGame();
 
   setTimeout(() => {
     const inner = boardEl.rows[r].cells[c].querySelector('.cell-inner');
