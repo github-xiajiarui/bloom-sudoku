@@ -977,7 +977,9 @@ function saveGame() {
     notes: notes.map(n => n ? [...n] : null),
     notesMode,
     selectedRow,
-    selectedCol
+    selectedCol,
+    hintHTML: hintPanelEl.innerHTML,
+    hintVisible: hintAreaEl.classList.contains('active')
   };
   localStorage.setItem(SAVE_KEY, JSON.stringify(state));
 }
@@ -1003,6 +1005,12 @@ function loadGame() {
     notesMode = s.notesMode;
     selectedRow = s.selectedRow;
     selectedCol = s.selectedCol;
+    // 恢复提示面板
+    if (s.hintVisible && s.hintHTML) {
+      hintPanelEl.innerHTML = s.hintHTML;
+      hintPanelEl.classList.add('show');
+      hintAreaEl.classList.add('active');
+    }
     return true;
   } catch (e) {
     clearSavedGame();
