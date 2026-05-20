@@ -836,7 +836,26 @@ function init() {
 
   buildNumpad();
   initPuzzlePools();
-  newGame();
+
+  if (!loadGame()) {
+    newGame();
+  } else {
+    // 恢复已保存的游戏状态
+    document.querySelectorAll('.diff-btn').forEach(btn => {
+      btn.classList.toggle('active', parseInt(btn.dataset.diff) === difficulty);
+    });
+    if (notesMode) {
+      btnNotesEl.classList.add('active');
+      btnNotesEl.textContent = '📝 笔记 (开)';
+      containerEl.classList.add('notes-mode');
+    }
+    renderBoard();
+    updateNumpad();
+    updateTimer();
+    updateMistakes();
+    startBackgroundGeneration();
+    startTimer();
+  }
 }
 
 function isValidSolved(board) {
@@ -938,8 +957,66 @@ function toggleNote(r, c, n) {
   }
 }
 
+// ======== SAVE / LOAD ========
+const SAVE_KEY = 'bloom-sudoku-save';
+
+function saveGame() {
+  const state = {
+    difficulty,
+    solved,
+    puzzle,
+    playerBoard,
+    givenMask,
+    mistakes,
+    timeSec,
+    history: history.map(h => ({
+      row: h.row, col: h.col, prev: h.prev, isMistake: h.isMistake,
+      prevNotes: h.prevNotes ? [...h.prevNotes] : null,
+      newNotes: h.newNotes ? [...h.newNotes] : null
+    })),
+    notes: notes.map(n => n ? [...n] : null),
+    notesMode,
+    selectedRow,
+    selectedCol
+  };
+  localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+}
+
+function loadGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    difficulty = s.difficulty;
+    solved = s.solved;
+    puzzle = s.puzzle;
+    playerBoard = s.playerBoard;
+    givenMask = s.givenMask;
+    mistakes = s.mistakes;
+    timeSec = s.timeSec;
+    history = s.history.map(h => ({
+      row: h.row, col: h.col, prev: h.prev, isMistake: h.isMistake,
+      prevNotes: h.prevNotes ? new Set(h.prevNotes) : null,
+      newNotes: h.newNotes ? new Set(h.newNotes) : null
+    }));
+    notes = s.notes.map(n => n ? new Set(n) : null);
+    notesMode = s.notesMode;
+    selectedRow = s.selectedRow;
+    selectedCol = s.selectedCol;
+    return true;
+  } catch (e) {
+    clearSavedGame();
+    return false;
+  }
+}
+
+function clearSavedGame() {
+  localStorage.removeItem(SAVE_KEY);
+}
+
 // ======== NEW GAME ========
 function newGame() {
+  clearSavedGame();
   stopTimer();
   mistakes = 0;
   timeSec = 0;
@@ -1170,6 +1247,7 @@ function placeNumber(n) {
     sfxError();
     if (mistakes >= 3) {
       setTimeout(() => {
+        clearSavedGame();
         failMsgEl.textContent = `难度: ${difficulty}空 | 用时: ${formatTime(timeSec)} | 错误: ${mistakes}/3`;
         failOverlayEl.classList.add('show');
         stopTimer();
@@ -1182,6 +1260,7 @@ function placeNumber(n) {
 
   renderBoard();
   updateNumpad();
+  saveGame();
 
   if (checkWin()) setTimeout(onWin, 400);
 }
@@ -1199,6 +1278,7 @@ function placeNote(n) {
 
   sfxNote();
   renderCell(selectedRow, selectedCol);
+  saveGame();
 }
 
 function eraseCell() {
@@ -1215,6 +1295,7 @@ function eraseCell() {
   sfxErase();
   renderCell(selectedRow, selectedCol);
   updateNumpad();
+  saveGame();
 }
 
 function undoMove() {
@@ -1231,6 +1312,7 @@ function undoMove() {
   renderBoard();
   updateNumpad();
   updateMistakes();
+  saveGame();
 }
 
 // ======== HINT ========
@@ -1447,6 +1529,7 @@ function checkWin() {
 }
 
 function onWin() {
+  clearSavedGame();
   stopTimer();
   sfxWin();
   const cells = document.querySelectorAll('.cell-inner');
