@@ -827,17 +827,17 @@ function init() {
 
   document.querySelectorAll('.diff-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      difficulty = parseInt(btn.dataset.diff);
-      newGame();
+      const newDiff = parseInt(btn.dataset.diff);
+      if (newDiff === difficulty) return;
+      saveGame();
+      switchDifficulty(newDiff);
     });
   });
 
   buildNumpad();
   initPuzzlePools();
 
-  if (!loadGame()) {
+  if (!loadGame(difficulty)) {
     newGame();
   } else {
     // 恢复已保存的游戏状态
@@ -958,7 +958,7 @@ function toggleNote(r, c, n) {
 }
 
 // ======== SAVE / LOAD ========
-const SAVE_KEY = 'bloom-sudoku-save';
+function saveKey(diff) { return 'bloom-sudoku-' + diff; }
 
 function saveGame() {
   const state = {
@@ -981,12 +981,12 @@ function saveGame() {
     hintHTML: hintPanelEl.innerHTML,
     hintVisible: hintAreaEl.classList.contains('active')
   };
-  localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+  localStorage.setItem(saveKey(difficulty), JSON.stringify(state));
 }
 
-function loadGame() {
+function loadGame(diff) {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(saveKey(diff));
     if (!raw) return false;
     const s = JSON.parse(raw);
     difficulty = s.difficulty;
@@ -1013,13 +1013,39 @@ function loadGame() {
     }
     return true;
   } catch (e) {
-    clearSavedGame();
+    clearSavedGame(diff);
     return false;
   }
 }
 
-function clearSavedGame() {
-  localStorage.removeItem(SAVE_KEY);
+function clearSavedGame(diff) {
+  localStorage.removeItem(saveKey(diff != null ? diff : difficulty));
+}
+
+function switchDifficulty(newDiff) {
+  difficulty = newDiff;
+  document.querySelectorAll('.diff-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.diff) === difficulty);
+  });
+  if (!loadGame(difficulty)) {
+    newGame();
+  } else {
+    if (notesMode) {
+      btnNotesEl.classList.add('active');
+      btnNotesEl.textContent = '📝 笔记 (开)';
+      containerEl.classList.add('notes-mode');
+    } else {
+      btnNotesEl.classList.remove('active');
+      btnNotesEl.textContent = '📝 笔记';
+      containerEl.classList.remove('notes-mode');
+    }
+    renderBoard();
+    updateNumpad();
+    updateTimer();
+    updateMistakes();
+    startBackgroundGeneration();
+    startTimer();
+  }
 }
 
 // ======== NEW GAME ========
